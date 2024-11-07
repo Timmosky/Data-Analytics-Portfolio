@@ -1,11 +1,22 @@
 ## About the data
-K-Mart, a departmental store that operates in 4 regions in the United States (Midwest, South, Northeast, West) sales records.
+Sales analysis of K-Mart, a departmental store that operates in 4 regions in the United States (Midwest, South, Northeast, West) 
 
-Number of records
+Number of records:  20,000
 
-20,000
+
+### Business Questions:
+
+•	What are the top three best-selling product categories in all 4 regions?
+
+•	What product category should we increase or decrease its stocks for all regions
+
+•	What increases the revenue?
+
+•	What salesperson deserves a promotion or demotion?
+
 
 ### Definition of terms
+
 •	Revenue – Total amount of money made by the business in each period
 
 •	Unit Cost – The cost incurred by the business to produce a unit of a product
@@ -14,14 +25,6 @@ Number of records
 
 •	Product Category – The group certain products can be classified as
 
-### Business Questions:
-•	What are the top three best-selling product categories in all 4 regions?
-
-•	What product category should we increase or decrease its stocks for all regions
-
-•	What increases the revenue?
-
-•	What salesperson deserves a promotion or demotion?
 
 ### North Star Metrics
 •	Revenue by product category
@@ -31,6 +34,8 @@ Number of records
 •	Key indicators of revenue growth
 
 •	Revenue by Salesperson
+
+### Overview of dashboard created
 
 <img src = "images/Snapshot of entire dashboardkmart.png">
  
