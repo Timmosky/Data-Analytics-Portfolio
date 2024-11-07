@@ -1,6 +1,16 @@
 # About the data
-Konga retail store data of customers’ transactions for the year 2023 and Q1 2024
-•	302, 011 records
+Sales analysis of Konga retail store data of customers’ transactions for the year 2023 and Q1 2024
+
+Number of records: 302, 011
+
+## Business Questions:
+
+•	What are the 2 best-selling product categories?
+
+•	What drives the revenue?
+
+•	What do our best customers look like?
+
 ## Customer key terms
 •	Regular – Customers who signed up for regular membership
 
@@ -26,14 +36,6 @@ Konga retail store data of customers’ transactions for the year 2023 and Q1 20
 
 •	Poor Quality
 
-## Business Questions:
-
-•	What are the 2 best-selling product categories?
-
-•	What drives the revenue?
-
-•	What do our best customers look like?
-
 ## North Star Metrics:
 
 •	Revenue by product category
@@ -41,6 +43,8 @@ Konga retail store data of customers’ transactions for the year 2023 and Q1 20
 •	Key indicators of revenue growth
 
 •	Customer segmentation profile
+
+### Overview of dashboard created
 
  <img src = "images/Snapshot of entire dashboard.png">
 
