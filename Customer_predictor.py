@@ -16,8 +16,6 @@ with Dataset:
     st.header('Dataset')
     st.text('This dataset provides a comprehensive view of customer interactions with digital marketing campaigns. It includes demographic data, marketing-specific metrics, customer engagement indicators, and historical purchase data, making it suitable for predictive modeling and analytics in the digital marketing domain.')
     st.caption(' Credits to: Rabie El Kharoua. (2024). 📈 Predict Conversion in Digital Marketing Dataset [Data set]. Kaggle. https://doi.org/10.34740/KAGGLE/DSV/8742946 for providing this dataset')
-    df = pd.read_csv(r'C:\Users\timil\OneDrive\Desktop\MY CV\digital_marketing_campaign_dataset.csv')
-    st.write(df.head())
 with Modelling:
     st.header('Prediction Machine')
     st.text('This model was trained using Random Forest Classifier and consists of 8000 records of different clients marketing interactions and conversion activities.')
