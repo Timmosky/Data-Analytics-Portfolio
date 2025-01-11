@@ -20,7 +20,7 @@ with Modelling:
     st.text('Instructions: Just enter the information of the client below and click predict to generate a result. Any unknown variable or information should be recorded as 0. No special characters such as commas or currency symbols.')
    
 
-    model = joblib.load('Streamlit/marketing_predictor3.joblib')
+    model = joblib.load('Data-Analytics-Portfolio/marketing_predictor3.joblib')
     def main():
         st.subheader('Client Conversion Predictor')
         Age = st.text_input('What is the age of the client?')
