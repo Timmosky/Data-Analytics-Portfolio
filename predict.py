@@ -17,9 +17,8 @@ with Modelling:
     st.header('Prediction Machine')
     st.text('This model was trained using Random Forest Classifier and consists of 8000 records of different clients marketing interactions and conversion activities.')
     st.text('Instructions: Just enter the information of the client below and click predict to generate a result. Any unknown variable or information should be recorded as 0. No special characters such as commas or currency symbols.')
-   
 
-    model = joblib.load('Data-Analytics-Portfolio/marketing_predictor3.joblib')
+    model = joblib.load('marketing_predictor3.joblib')
     def main():
         st.subheader('Client Conversion Predictor')
         Age = st.text_input('What is the age of the client?')
