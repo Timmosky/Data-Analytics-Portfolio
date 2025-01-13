@@ -7,7 +7,7 @@ Dataset = st.container()
 Modelling = st.container()
 
 with Introduction:
-    st.title(':blue[Prospect Conversion Estimator] :sunglasses:')
+    st.title(':blue[Client Conversion Estimator] :sunglasses:')
     st.text('This estimator helps predict prospects who are likely going to take a conversion action, helping you understand prospects to focus resources on. This is resourceful for marketing professionals and business owners.')
 with Dataset:
     st.header('Dataset')
