@@ -12,3 +12,8 @@ model = DistilBertForSequenceClassification.from_pretrained("distilbert-base-unc
 nlp = pipeline('sentiment-analysis', model = model, tokenizer = tokenizer)
 texts = list(df.content.values)
 results = nlp(texts)
+
+for (texts, results, df.score.values):
+    print('text:', text)
+    print('result:', results)
+    print('score:', score)
