@@ -13,7 +13,9 @@ nlp = pipeline('sentiment-analysis', model = model, tokenizer = tokenizer)
 texts = list(df.content.values)
 results = nlp(texts)
 
-for (texts, results, df.score.values):
+for text, result, score in zip (texts, results, df.score.values):
     print('text:', text)
     print('result:', results)
     print('score:', score)
+df['sentiments'] = [r['label'] for r in results]
+df
