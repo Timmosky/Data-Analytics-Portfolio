@@ -1,0 +1,29 @@
+WITH ranked_logs AS (
+        SELECT
+            tar_systemid,
+            msg_date,
+            log_text,
+            model_type,
+            log_timestamp_ts,
+            REGEXP_EXTRACT(log_text, 'Drive [A-Z]', 0) AS drive_id,
+            ROW_NUMBER() OVER (PARTITION BY tar_systemid, msg_date, REGEXP_EXTRACT(log_text, 'Drive [A-Z]', 0) ORDER BY log_timestamp_ts DESC) AS rn
+        FROM
+            "us_prod_magellan_ul"."ul_logdb_mainlog_all"
+        WHERE
+            (model_type LIKE '%E10%'
+            OR model_type LIKE '%FORTIS%')
+            AND log_text LIKE 'Drive%'
+            AND msg_date >= '2025-04-14'
+            AND msg_date <  '2025-04-29'
+    
+    )
+    SELECT
+        tar_systemid,
+        msg_date,
+        log_text,
+        model_type,
+        log_timestamp_ts, rn
+    FROM
+        ranked_logs
+    where rn = 1
+    order by tar_systemid, msg_date;
