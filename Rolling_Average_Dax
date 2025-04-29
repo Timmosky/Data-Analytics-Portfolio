@@ -1,0 +1,1 @@
+Rolling Average Sale = AverageX(Filter(Allselected(Date), Dates[Date] <=Max(Dates[Date])), [Total Sales])
