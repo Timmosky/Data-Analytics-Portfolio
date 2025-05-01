@@ -1,29 +1,29 @@
-WITH ranked_logs AS (
+WITH system_logs AS (
         SELECT
             tar_systemid,
-            msg_date,
+            cast(msg_date as date) as msg_date,
             log_text,
             model_type,
             log_timestamp_ts,
             REGEXP_EXTRACT(log_text, 'Drive [A-Z]', 0) AS drive_id,
-            ROW_NUMBER() OVER (PARTITION BY tar_systemid, msg_date, REGEXP_EXTRACT(log_text, 'Drive [A-Z]', 0) ORDER BY log_timestamp_ts DESC) AS rn
+            ROW_NUMBER() OVER (PARTITION BY tar_systemid, cast(msg_date as date), REGEXP_EXTRACT(log_text, 'Drive [A-Z]', 0) ORDER BY log_timestamp_ts DESC) AS rn
         FROM
             "us_prod_magellan_ul"."ul_logdb_mainlog_all"
         WHERE
             (model_type LIKE '%E10%'
             OR model_type LIKE '%FORTIS%')
             AND log_text LIKE 'Drive%'
-            AND msg_date >= '2025-04-14'
-            AND msg_date <  '2025-04-29'
-    
+            AND cast(msg_date as date) >= current_date - interval '7' day
     )
-    SELECT
-        tar_systemid,
-        msg_date,
-        log_text,
-        model_type,
-        log_timestamp_ts, rn
-    FROM
-        ranked_logs
-    where rn = 1
-    order by tar_systemid, msg_date;
+    
+    -----------------DRIVES PIVOT VALUES WITH % EXTRACT LOG FILES---------------------------------  
+    SELECT tar_systemid, cast(msg_date as date) as msg_date,
+       MAX(CASE when drive_id = 'Drive C' then (select(REGEXP_EXTRACT(log_text, '(\d+)%')))END) as DRIVE_C, 
+       MAX(CASE when drive_id = 'Drive D' then (select(REGEXP_EXTRACT(log_text, '(\d+)%')))END) as DRIVE_D, 
+       MAX(CASE when drive_id = 'Drive E' then (select(REGEXP_EXTRACT(log_text, '(\d+)%')))END) as DRIVE_E, 
+       MAX(CASE when drive_id = 'Drive V' then (select(REGEXP_EXTRACT(log_text, '(\d+)%')))END) as DRIVE_V, 
+       MAX(CASE when drive_id = 'Drive Z' then (select(REGEXP_EXTRACT(log_text, '(\d+)%')))END) as DRIVE_Z 
+       
+       from system_logs
+       where rn = 1
+       group by tar_systemid, cast(msg_date as date) order by tar_systemid, cast(msg_date as date) desc;
