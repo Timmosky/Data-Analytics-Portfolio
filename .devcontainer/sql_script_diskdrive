@@ -69,9 +69,9 @@ ROW_NUMBER() OVER (PARTITION BY log_text,regexp_extract(model_type, 'LOGIQ_(.{3}
 log_timestamp_ts DESC) AS rn FROM "us_prod_magellan_ul"."ul_logdb_mainlog_all" WHERE
             (model_type LIKE '%E10%'
             OR model_type LIKE '%FORTIS%' OR model_type like '%S8%')
-            AND log_text LIKE 'Drive%' AND cast(msg_date as date) >= CURRENT_DATE - INTERVAL '14' DAY )
+            AND log_text LIKE 'Drive%' AND msg_date >  '2025-05-05')
             
-          select tar_systemid, date_t, count (distinct tar_systemid) as distinct_count from (select tar_systemid, date_t, log_timestamp_ts, model, Drive_type from log_index where rn = 1 order by date_t DESC) sub group by tar_systemid, date_t having count(*)>1 order by date_t DESC;
+          select tar_systemid, date_t, log_timestamp_ts, model, Drive_type from log_index where rn = 1  order by date_t DESC;
     
     
     
