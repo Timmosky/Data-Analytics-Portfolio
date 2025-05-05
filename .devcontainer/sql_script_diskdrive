@@ -76,7 +76,7 @@ log_timestamp_ts DESC) AS rn FROM "us_prod_magellan_ul"."ul_logdb_mainlog_all" W
     
     
     
-    
+    select log_text, regexp_extract(log_text,'%\s*(.*)', 1) as gb_test from sktest where rn =1; ------log extract gb 
     
     
     
