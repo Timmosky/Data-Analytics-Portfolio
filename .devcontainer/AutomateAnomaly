@@ -1,0 +1,156 @@
+🛠️ Step-by-Step Implementation
+Step 1: ✅ Store Service Records in S3
+Example file: s3://your-bucket/service-records/service_records.csv
+
+Format: CSV with fields:
+
+product_id
+
+timestamp (date of usage/service)
+
+utilization_metric (e.g., usage hours, count)
+
+Step 2: ✅ Write the Detection Script (detect_anomalies.py)
+This runs inside SageMaker Processing:
+
+python
+Copy
+Edit
+# detect_anomalies.py
+import pandas as pd
+from sklearn.ensemble import IsolationForest
+import argparse
+import os
+
+def detect_anomalies(df):
+    all_anomalies = []
+
+    for product_id, group in df.groupby('product_id'):
+        usage = (
+            group.set_index('timestamp')
+            .resample('W')['utilization_metric']
+            .sum()
+            .fillna(0)
+            .reset_index()
+        )
+
+        if len(usage) < 10:
+            continue
+
+        model = IsolationForest(contamination=0.1, random_state=42)
+        usage['anomaly'] = model.fit_predict(usage[['utilization_metric']])
+        usage['anomaly'] = usage['anomaly'].map({1: 0, -1: 1})
+        usage['product_id'] = product_id
+
+        anomalies = usage[usage['anomaly'] == 1]
+        all_anomalies.append(anomalies)
+
+    if all_anomalies:
+        result = pd.concat(all_anomalies, ignore_index=True)
+        return result
+    return pd.DataFrame()
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input-data', type=str)
+    parser.add_argument('--output-data', type=str)
+    args = parser.parse_args()
+
+    df = pd.read_csv(os.path.join(args.input_data, 'service_records.csv'), parse_dates=['timestamp'])
+    anomalies = detect_anomalies(df)
+    anomalies.to_csv(os.path.join(args.output_data, 'anomaly_report.csv'), index=False)
+Step 3: ✅ Create SageMaker Processing Job
+python
+Copy
+Edit
+import sagemaker
+from sagemaker.sklearn.processing import SKLearnProcessor
+from sagemaker.processing import ProcessingInput, ProcessingOutput
+
+role = 'arn:aws:iam::<your-account-id>:role/service-role/sagemaker-execution-role'  # Adjust as needed
+
+sklearn_processor = SKLearnProcessor(
+    framework_version='0.23-1',
+    role=role,
+    instance_type='ml.m5.large',
+    instance_count=1,
+    base_job_name='utilization-anomaly-detection'
+)
+
+sklearn_processor.run(
+    code='detect_anomalies.py',
+    inputs=[
+        ProcessingInput(
+            source='s3://your-bucket/service-records/',
+            destination='/opt/ml/processing/input'
+        )
+    ],
+    outputs=[
+        ProcessingOutput(
+            source='/opt/ml/processing/output',
+            destination='s3://your-bucket/anomaly-results/'
+        )
+    ],
+    arguments=[
+        '--input-data', '/opt/ml/processing/input',
+        '--output-data', '/opt/ml/processing/output'
+    ]
+)
+Step 4: ✅ Send Alerts via SNS (Optional Lambda)
+Create a Lambda function that:
+
+Gets anomaly_report.csv from S3
+
+Parses it
+
+Sends a summary email via SNS
+
+python
+Copy
+Edit
+import boto3
+import pandas as pd
+import io
+
+def lambda_handler(event, context):
+    s3 = boto3.client('s3')
+    sns = boto3.client('sns')
+
+    BUCKET = 'your-bucket'
+    KEY = 'anomaly-results/anomaly_report.csv'
+    SNS_TOPIC = 'arn:aws:sns:your-region:your-topic'
+
+    try:
+        obj = s3.get_object(Bucket=BUCKET, Key=KEY)
+        df = pd.read_csv(io.BytesIO(obj['Body'].read()))
+        
+        if not df.empty:
+            msg = '\n'.join([
+                f"Product: {row['product_id']} | Date: {row['timestamp']} | Utilization: {row['utilization_metric']}"
+                for _, row in df.iterrows()
+            ])
+            sns.publish(
+                TopicArn=SNS_TOPIC,
+                Subject='⚠️ Anomalies Detected in Product Utilization',
+                Message=msg
+            )
+    except Exception as e:
+        print("Error processing anomaly report:", e)
+Schedule this Lambda with EventBridge to run shortly after the SageMaker job completes.
+
+Step 5: ✅ (Optional) Automate with EventBridge or Step Functions
+You can schedule or automate:
+
+Triggering the SageMaker Processing job
+
+Invoking the Lambda after it finishes
+
+Use Step Functions to link the two with a visual workflow if needed.
+
+🧾 Summary
+Task	AWS Service
+Store service records	Amazon S3
+Run anomaly detection	SageMaker Processing
+Schedule or orchestrate	EventBridge / Step Functions
+Send alerts	Lambda + SNS
+View or analyze results	Athena, QuickSight, or download
