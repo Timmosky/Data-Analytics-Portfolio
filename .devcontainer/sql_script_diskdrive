@@ -77,6 +77,17 @@ log_timestamp_ts DESC) AS rn FROM "us_prod_magellan_ul"."ul_logdb_mainlog_all" W
     
     
     select log_text, regexp_extract(log_text,'%\s*(.*)', 1) as gb_test from sktest where rn =1; ------log extract gb 
+
+
+
+-------------------------------weekly drive capacity--------------------------------------------------
+ select dateweek, max(DRIVE_Z) as drive_ZZ, max(DRIVE_C) as drive_cc, max(DRIVE_E) as drive_ee, max(DRIVE_D) as drive_dd, tar_systemid from
+ (select date_trunc('week', msg_date) as dateweek, tar_systemid, msg_date, log_timestamp_ts,  ROW_NUMBER() over (PARTITION by tar_systemid order by date_trunc('week', msg_date)desc) as dn, DRIVE_Z, DRIVE_C, DRIVE_D, DRIVE_E from ( select tar_systemid,msg_date, log_timestamp_ts, MAX(CASE when drive_id = 'Drive Z' then (select(REGEXP_EXTRACT(log_text, '(\d+)%')))END) as DRIVE_Z, MAX(CASE when drive_id = 'Drive C' then (select(REGEXP_EXTRACT(log_text, '(\d+)%')))END) as DRIVE_C, 
+       MAX(CASE when drive_id = 'Drive D' then (select(REGEXP_EXTRACT(log_text, '(\d+)%')))END) as DRIVE_D, 
+       MAX(CASE when drive_id = 'Drive E' then (select(REGEXP_EXTRACT(log_text, '(\d+)%')))END) as DRIVE_E
+    from system_logs where rn = 1 and tar_systemid = 
+    group by tar_systemid,msg_date, log_timestamp_ts
+    ORDER BY msg_date desc)sub)sub2 group by dateweek, tar_systemid
     
     
     
