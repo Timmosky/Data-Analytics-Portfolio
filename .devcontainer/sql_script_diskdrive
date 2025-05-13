@@ -1,4 +1,20 @@
--------CTE-------------------------------------------------
+------------CPU INFO---------------------------------------        
+SELECT * FROM "us_prod_magellan_ul"."ul_logdb_mainlog_all"
+WHERE msg_date = '2024-02-13'
+and log_text like '%is outside tolerance limits. UpperLimit =%' or log_text like '%DACQA%'
+LIMIT 500
+-------------- GPU/SYS----------temperature
+SELECT * FROM "us_prod_magellan_ul"."ul_logdb_monitoring_dtl"
+WHERE (monitoring_name LIKE '%GPU_SYS_TEMPERATURE% )
+AND msg_date = '2024-02-13'
+LIMIT 1000
+
+----------------SOFTWARE VERSION------------------
+SELECT * FROM "us_prod_magellan_ul"."ul_logdb_mainlog_all"
+WHERE msg_date = '2024-02-13'
+and log_text like '%Overall SW version%'
+LIMIT 500
+-------CTE DRIVE CAPACITY QUERIES-------------------------------------------------
 WITH system_logs AS (
         SELECT
             tar_systemid,
@@ -9,24 +25,35 @@ WITH system_logs AS (
             REGEXP_EXTRACT(log_text, 'Drive [A-Z]', 0) AS drive_id,
             ROW_NUMBER() OVER (PARTITION BY tar_systemid, cast(msg_date as date), REGEXP_EXTRACT(log_text, 'Drive [A-Z]', 0) ORDER BY log_timestamp_ts DESC) AS rn
         FROM
-            "us_prod_magellan_ul"."ul_logdb_mainlog_all"
+            "us_prod_magellan_ul"."ul_logdb_mainlog_all" 
         WHERE
             (model_type LIKE '%E10%'
             OR model_type LIKE '%FORTIS%')
             AND log_text LIKE 'Drive%'
-            AND cast(msg_date as date) >= current_date - interval '7' day
+            and cast(msg_date as date)>= current_date - interval '14' day
+            -------AND tar_systemid NOT IN (SELECT tar_systemid FROM "us_prod_magellan_ul"."ul_logdb_mainlog_all" WHERE cast(msg_date as date) > current_date)
     )
-    ----------Drive capacity-------------------------------
-    select tar_systemid,msg_date, 
+    ---------- All Drive capacity-------------------------------
+  select tar_systemid,msg_date, 
      MAX(CASE when drive_id = 'Drive C' then (select(REGEXP_EXTRACT(log_text, '(\d+)%')))END) as DRIVE_C, 
        MAX(CASE when drive_id = 'Drive D' then (select(REGEXP_EXTRACT(log_text, '(\d+)%')))END) as DRIVE_D, 
        MAX(CASE when drive_id = 'Drive E' then (select(REGEXP_EXTRACT(log_text, '(\d+)%')))END) as DRIVE_E, 
-       MAX(CASE when drive_id = 'Drive V' then (select(REGEXP_EXTRACT(log_text, '(\d+)%')))END) as DRIVE_V, 
-       MAX(CASE when drive_id = 'Drive Z' then (select(REGEXP_EXTRACT(log_text, '(\d+)%')))END) as DRIVE_Z
-    from system_logs where tar_systemid = 'LEX400746' 
-    AND rn = 1
-    GROUP BY  tar_systemid, msg_date
-    ORDER BY msg_date;
+      ---------- MAX(CASE when drive_id = 'Drive V' then (select(REGEXP_EXTRACT(log_text, '(\d+)%')))END) as DRIVE_V, 
+      MAX(CASE when drive_id = 'Drive Z' then (select(REGEXP_EXTRACT(log_text, '(\d+)%')))END) as DRIVE_Z
+        from system_logs
+       where rn = 1
+       group by tar_systemid, msg_date order by tar_systemid, msg_date desc;
+      
+      
+     
+                                                                                         
+    ----------------------------------Query for selecting the actual GB value of the drives---------------------------
+    /* MAX(CASE when drive_id = 'Drive C' then (select(regexp_extract(log_text,'%\s*(.*)', 1)))END) as DRIVE_C_GB, 
+       MAX(CASE when drive_id = 'Drive D' then (select(regexp_extract(log_text,'%\s*(.*)', 1)))END) as DRIVE_D_GB, 
+       MAX(CASE when drive_id = 'Drive E' then (select(regexp_extract(log_text,'%\s*(.*)', 1)))END) as DRIVE_E_GB, 
+       MAX(CASE when drive_id = 'Drive V' then (select(regexp_extract(log_text,'%\s*(.*)', 1)))END) as DRIVE_V_GB, 
+       MAX(CASE when drive_id = 'Drive Z' then (select(regexp_extract(log_text,'%\s*(.*)', 1)))END) as DRIVE_Z_GB */
+      
     
     
     -----------------DRIVES PIVOT VALUES WITH % EXTRACT LOG FILES---------------------------------  
@@ -42,7 +69,7 @@ WITH system_logs AS (
        group by tar_systemid, cast(msg_date as date) order by tar_systemid, cast(msg_date as date) desc;
     
     -------DRIVES PIVOT VALUES WITH LOG FILES-------------
-    SELECT tar_systemid, msg_date,
+    SELECT tar_systemid, msg_date
        MAX(CASE when drive_id = 'Drive C' then log_text END) as DRIVE_C,
        MAX(CASE when drive_id = 'Drive D' then log_text end) as DRIVE_D,
        MAX(CASE when drive_id = 'Drive E' then log_text end) as DRIVE_E,
@@ -50,7 +77,7 @@ WITH system_logs AS (
        MAX(CASE when drive_id = 'Drive Z' then log_text end) as DRIVE_Z
        from ranked_logs
        where rn = 1
-       group by tar_systemid, msg_date order by tar_systemid, msg_date desc;
+       group by tar_systemid, msg_date, regexp_extract(log_text,'%\s*(.*)', 1) order by tar_systemid, msg_date desc;
     
   --------Regular value---------------------------------------
     SELECT
@@ -69,26 +96,35 @@ ROW_NUMBER() OVER (PARTITION BY log_text,regexp_extract(model_type, 'LOGIQ_(.{3}
 log_timestamp_ts DESC) AS rn FROM "us_prod_magellan_ul"."ul_logdb_mainlog_all" WHERE
             (model_type LIKE '%E10%'
             OR model_type LIKE '%FORTIS%' OR model_type like '%S8%')
-            AND log_text LIKE 'Drive%' AND msg_date >  '2025-05-05')
-            
-          select tar_systemid, date_t, log_timestamp_ts, model, Drive_type from log_index where rn = 1  order by date_t DESC;
-    
-    
-    
-    
-    select log_text, regexp_extract(log_text,'%\s*(.*)', 1) as gb_test from sktest where rn =1; ------log extract gb 
+            AND log_text LIKE 'Drive%' AND msg_date >  '2025-05-08')
+select count(distinct tar_systemid) as distinct_count, tar_systemid from (select tar_systemid, date_t, log_timestamp_ts, model, Drive_type from log_index where rn = 1  order by date_t DESC) sub group by tar_systemid;
 
 
-
--------------------------------weekly drive capacity--------------------------------------------------
+  ---------- All Drive capacity weekly-------------------------------
  select dateweek, max(DRIVE_Z) as drive_ZZ, max(DRIVE_C) as drive_cc, max(DRIVE_E) as drive_ee, max(DRIVE_D) as drive_dd, tar_systemid from
  (select date_trunc('week', msg_date) as dateweek, tar_systemid, msg_date, log_timestamp_ts,  ROW_NUMBER() over (PARTITION by tar_systemid order by date_trunc('week', msg_date)desc) as dn, DRIVE_Z, DRIVE_C, DRIVE_D, DRIVE_E from ( select tar_systemid,msg_date, log_timestamp_ts, MAX(CASE when drive_id = 'Drive Z' then (select(REGEXP_EXTRACT(log_text, '(\d+)%')))END) as DRIVE_Z, MAX(CASE when drive_id = 'Drive C' then (select(REGEXP_EXTRACT(log_text, '(\d+)%')))END) as DRIVE_C, 
        MAX(CASE when drive_id = 'Drive D' then (select(REGEXP_EXTRACT(log_text, '(\d+)%')))END) as DRIVE_D, 
        MAX(CASE when drive_id = 'Drive E' then (select(REGEXP_EXTRACT(log_text, '(\d+)%')))END) as DRIVE_E
-    from system_logs where rn = 1 and tar_systemid = 
+    from system_logs where rn = 1
     group by tar_systemid,msg_date, log_timestamp_ts
     ORDER BY msg_date desc)sub)sub2 group by dateweek, tar_systemid
     
     
     
-------------------------END OF ALL QUERIES------------------------------------------------- 
+ -----------------------------------------------------------CPU/GPU Queries-------------------------------------------------------   
+    
+       WITH CTE1 AS ( select log_timestamp_ts, Cast(msg_date as date) as msg_date, tar_systemid, log_text, regexp_extract(log_text, '=*((\d+).[0-9]+) *(degrees|outside)',1) as GPU_temp, row_number() over (partition by tar_systemid, Cast(msg_date as date) order by log_timestamp_ts DESC) as rn from "us_prod_magellan_ul"."ul_logdb_mainlog_all" where Cast(msg_date as date) >= current_date - interval '14' day and 
+             (log_text like '%GPU_SYS_TEMPERATURE%' OR log_text like '%is outside tolerance limits. UpperLimit =%' OR  log_text like '%outside tolerance limits. UpperBound =%' OR log_text like '%GPU_SYS_TEMPERATURE_P4000%'))
+             
+           SELECT log_text, regexp_extract(log_text, 'version (.*)') as software_version, Cast(msg_date as date) as msg_date FROM "us_prod_magellan_ul"."ul_logdb_mainlog_all" WHERE log_text LIKE '%NVIDIA%' AND  Cast(msg_date as date) >= current_date - interval '14' day;
+           
+           
+           WITH CTE1 AS ( select log_timestamp_ts, Cast(msg_date as date) as msg_date, tar_systemid, log_text, regexp_extract(log_text, '=*((\d+).[0-9]+) *(degrees|outside)',1) as GPU_temp, regexp_extract(log_text, 'version (.*)') as software_version, row_number() over (partition by tar_systemid, Cast(msg_date as date), regexp_extract(log_text, 'version (.*)') order by log_timestamp_ts DESC) as rn from "us_prod_magellan_ul"."ul_logdb_mainlog_all" where Cast(msg_date as date) >= current_date - interval '14' day and 
+             (log_text like '%GPU_SYS_TEMPERATURE%' OR log_text like '%is outside tolerance limits. UpperLimit =%' OR  log_text like '%outside tolerance limits. UpperBound =%' OR log_text like '%Overall SW version%' OR log_text like '%GPU_SYS_TEMPERATURE_P4000%'))
+             
+    
+    
+    
+    
+    
+------------------------END OF ALL QUERIES--------------------------------------------------------------------------------------------------    
