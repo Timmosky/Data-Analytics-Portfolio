@@ -1,0 +1,84 @@
+import sys
+from awsglue.transforms import *
+from awsglue.utils import getResolvedOptions
+from pyspark.context import SparkContext
+from awsglue.context import GlueContext
+from awsglue.job import Job
+from awsglue import DynamicFrame
+
+def sparkSqlQuery(glueContext, query, mapping, transformation_ctx) -> DynamicFrame:
+    for alias, frame in mapping.items():
+        frame.toDF().createOrReplaceTempView(alias)
+    result = spark.sql(query)
+    return DynamicFrame.fromDF(result, glueContext, transformation_ctx)
+args = getResolvedOptions(sys.argv, ['JOB_NAME'])
+sc = SparkContext()
+glueContext = GlueContext(sc)
+spark = glueContext.spark_session
+job = Job(glueContext)
+job.init(args['JOB_NAME'], args)
+
+# Script generated for node Ib data
+Ibdata_node1747404695699 = glueContext.create_dynamic_frame.from_options(format_options={"quoteChar": "\"", "withHeader": True, "separator": ",", "optimizePerformance": False}, connection_type="s3", format="csv", connection_options={"paths": ["s3://dataibdrive/iboutput/"], "recurse": True}, transformation_ctx="Ibdata_node1747404695699")
+
+# Script generated for node log data
+logdata_node1747404526333 = glueContext.create_dynamic_frame.from_options(format_options={"quoteChar": "\"", "withHeader": True, "separator": ",", "optimizePerformance": False}, connection_type="s3", format="csv", connection_options={"paths": ["s3://pqlogstext/PQobjects/"], "recurse": True}, transformation_ctx="logdata_node1747404526333")
+
+# Script generated for node ib _Schema
+ib_Schema_node1747404699836 = ApplyMapping.apply(frame=Ibdata_node1747404695699, mappings=[("systemid", "string", "systemid", "varchar"), ("customername", "string", "customername", "string"), ("age", "string", "age", "string"), ("site_name", "string", "site_name", "string"), ("asinstalledaddresscountry", "string", "asinstalledaddresscountry", "string"), ("asinstalledaddresszipcode", "string", "asinstalledaddresszipcode", "string"), ("maxwarrantyenddate", "string", "maxwarrantyenddate", "string"), ("maxwarrantystartdate", "string", "maxwarrantystartdate", "string"), ("minwarrantyenddate", "string", "minwarrantyenddate", "string"), ("minwarrantystartdate", "string", "minwarrantystartdate", "string"), ("region", "string", "region", "string"), ("grp_of_countries_description", "string", "grp_of_countries_description", "string"), ("country", "string", "country", "string")], transformation_ctx="ib_Schema_node1747404699836")
+
+# Script generated for node log_schema
+log_schema_node1747404586171 = ApplyMapping.apply(frame=logdata_node1747404526333, mappings=[("tar_systemid", "string", "tar_systemid", "varchar"), ("model_type", "string", "model_type", "string"), ("msg_datetime", "string", "msg_datetime", "string"), ("log_text", "string", "log_text", "string"), ("log_timestamp_ts", "string", "log_timestamp_ts", "string"), ("msg_date", "string", "msg_date", "string"), ("file_key", "string", "file_key", "string")], transformation_ctx="log_schema_node1747404586171")
+
+# Script generated for node Merged Table
+SqlQuery81 = '''
+select * from logdata left join ibdata on logdata.tar_systemid = ibdata.systemid
+'''
+MergedTable_node1747404821653 = sparkSqlQuery(glueContext, query = SqlQuery81, mapping = {"logdata":log_schema_node1747404586171, "ibdata":ib_Schema_node1747404699836}, transformation_ctx = "MergedTable_node1747404821653")
+
+# Script generated for node Transformed table
+SqlQuery82 = '''
+with system as (SELECT
+            tar_systemid,site_name,customername,
+            msg_date,
+            log_text,
+            model_type,
+            log_timestamp_ts,
+            REGEXP_EXTRACT(log_text, 'Drive [A-Z]', 0) AS drive_id,
+            ROW_NUMBER() OVER (PARTITION BY tar_systemid, cast(msg_date as date), site_name, REGEXP_EXTRACT(log_text, 'Drive [A-Z]', 0) ORDER BY log_timestamp_ts DESC) AS rn
+        FROM
+            myDataSource
+        WHERE
+            (model_type LIKE '%E10%'
+            OR model_type LIKE '%FORTIS%')
+            AND log_text LIKE 'Drive%' and site_name is not null)
+            -------AND tar_systemid NOT IN (SELECT tar_systemid FROM "us_prod_magellan_ul"."ul_logdb_mainlog_all" WHERE cast(msg_date as date) > current_date)
+    select tar_systemid,msg_date,site_name,customername,
+     MAX(CASE when drive_id = 'Drive C' then (select(REGEXP_EXTRACT(log_text, '(\\\\d+)%')))END) as DRIVE_C, 
+       MAX(CASE when drive_id = 'Drive D' then (select(REGEXP_EXTRACT(log_text, '(\\\\d+)%')))END) as DRIVE_D, 
+       MAX(CASE when drive_id = 'Drive E' then (select(REGEXP_EXTRACT(log_text, '(\\\\d+)%')))END) as DRIVE_E, 
+      ---------- MAX(CASE when drive_id = 'Drive V' then (select(REGEXP_EXTRACT(log_text, '(\\\\d+)%')))END) as DRIVE_V, 
+      MAX(CASE when drive_id = 'Drive Z' then (select(REGEXP_EXTRACT(log_text, '(\\\\d+)%')))END) as DRIVE_Z
+        from system
+       where rn = 1
+       group by tar_systemid, msg_date, site_name,customername order by tar_systemid, msg_date desc;
+'''
+
+
+Transformedtable_node1747404963098 = sparkSqlQuery(glueContext, query = SqlQuery82, mapping = {"myDataSource":MergedTable_node1747404821653}, transformation_ctx = "Transformedtable_node1747404963098")
+
+dataFrame = Transformedtable_node1747404963098.toDF()
+
+dataFrame = dataFrame.repartition(1)
+
+dataFrame.write\
+    .format("csv")\
+    .option("header", "true")\
+    .option("sep", ",")\
+    .option("quote", None)\
+    .mode("overwrite")\
+    .save("s3://dataengtimmosky/Notebook/")
+
+# Script generated for node destination
+
+job.commit()
