@@ -43,6 +43,33 @@ WITH system_logs AS (
         from system_logs
        where rn = 1
        group by tar_systemid, msg_date order by tar_systemid, msg_date desc;
+
+
+---------------------FOR GLUE ETL VERSION------------------------------------------------------------
+with system as (SELECT
+            tar_systemid,
+            msg_date,
+            log_text,
+            model_type,
+            log_timestamp_ts,
+            REGEXP_EXTRACT(log_text, 'Drive [A-Z]', 0) AS drive_id,
+            ROW_NUMBER() OVER (PARTITION BY tar_systemid, cast(msg_date as date), REGEXP_EXTRACT(log_text, 'Drive [A-Z]', 0) ORDER BY log_timestamp_ts DESC) AS rn
+        FROM
+            myDataSource
+        WHERE
+            (model_type LIKE '%E10%'
+            OR model_type LIKE '%FORTIS%')
+            AND log_text LIKE 'Drive%')
+            -------AND tar_systemid NOT IN (SELECT tar_systemid FROM "us_prod_magellan_ul"."ul_logdb_mainlog_all" WHERE cast(msg_date as date) > current_date)
+    select tar_systemid,msg_date,
+     MAX(CASE when drive_id = 'Drive C' then (select(REGEXP_EXTRACT(log_text, '(\\\\d+)%')))END) as DRIVE_C, 
+       MAX(CASE when drive_id = 'Drive D' then (select(REGEXP_EXTRACT(log_text, '(\\\\d+)%')))END) as DRIVE_D, 
+       MAX(CASE when drive_id = 'Drive E' then (select(REGEXP_EXTRACT(log_text, '(\\\\d+)%')))END) as DRIVE_E, 
+      ---------- MAX(CASE when drive_id = 'Drive V' then (select(REGEXP_EXTRACT(log_text, '(\\\\d+)%')))END) as DRIVE_V, 
+      MAX(CASE when drive_id = 'Drive Z' then (select(REGEXP_EXTRACT(log_text, '(\\\\d+)%')))END) as DRIVE_Z
+        from system
+       where rn = 1
+       group by tar_systemid, msg_date order by tar_systemid, msg_date desc;
       
       
      
@@ -123,7 +150,35 @@ select count(distinct tar_systemid) as distinct_count, tar_systemid from (select
              (log_text like '%GPU_SYS_TEMPERATURE%' OR log_text like '%is outside tolerance limits. UpperLimit =%' OR  log_text like '%outside tolerance limits. UpperBound =%' OR log_text like '%Overall SW version%' OR log_text like '%GPU_SYS_TEMPERATURE_P4000%'))
              
     
-    
+    -----------------------------------Modified for Glue ETL-------------------------------------------------
+
+with system as (SELECT
+            tar_systemid,
+            msg_date,
+            log_text,
+            model_type,
+            log_timestamp_ts,
+            REGEXP_EXTRACT(log_text, 'Drive [A-Z]', 0) AS drive_id,
+            ROW_NUMBER() OVER (PARTITION BY tar_systemid, cast(msg_date as date), REGEXP_EXTRACT(log_text, 'Drive [A-Z]', 0) ORDER BY log_timestamp_ts DESC) AS rn
+        FROM
+            myDataSource
+        WHERE
+            (model_type LIKE '%E10%'
+            OR model_type LIKE '%FORTIS%')
+            AND log_text LIKE 'Drive%')
+            -------AND tar_systemid NOT IN (SELECT tar_systemid FROM "us_prod_magellan_ul"."ul_logdb_mainlog_all" WHERE cast(msg_date as date) > current_date)
+    select tar_systemid,
+            msg_date,
+            log_text,
+            model_type,
+            log_timestamp_ts, REGEXP_EXTRACT(log_text, '(\\\\d+)%' 
+            
+            
+            ) as drive_cap from system limit 5
+    ---------- All Drive capacity-------------------------------
+  
+  
+  
     
     
     
