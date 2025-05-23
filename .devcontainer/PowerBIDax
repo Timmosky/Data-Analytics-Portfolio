@@ -1,3 +1,8 @@
 
 ------------------Capacity Alert disk drive----------------
 risk_level_Drive_D = IF(DiskDriveCapTable[DRIVE_D]>0.5, "Excellent_Capacity", IF(AND(DiskDriveCapTable[DRIVE_D]<=0.5, DiskDriveCapTable[DRIVE_D]>=0.3),"Good_capacity", IF(AND(DiskDriveCapTable[DRIVE_D]<0.3, DiskDriveCapTable[DRIVE_D]>=0.16), "Moderate_capacity", IF(AND(DiskDriveCapTable[DRIVE_D]<0.16, DiskDriveCapTable[DRIVE_D]>=0.07), "Warning_Low_Capacity", "Extremely_Low_Capacity"))))
+
+
+caphealthvalue = SWITCH(TRUE(), [AVG7DAYCAP] >= 0.5, "Healthy", [AVG7DAYCAP] <0.5 && [AVG7DAYCAP] >=0.30, "Moderate", "Unhealthy")
+
+00424ULT22 Good example to describe system health Month of may
