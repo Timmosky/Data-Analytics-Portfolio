@@ -6,3 +6,7 @@ risk_level_Drive_D = IF(DiskDriveCapTable[DRIVE_D]>0.5, "Excellent_Capacity", IF
 caphealthvalue = SWITCH(TRUE(), [AVG7DAYCAP] >= 0.5, "Healthy", [AVG7DAYCAP] <0.5 && [AVG7DAYCAP] >=0.30, "Moderate", "Unhealthy")
 
 00424ULT22 Good example to describe system health Month of may
+
+Consecutivelowdays = 
+VAR CurrentDate = 'log'[msg_date]
+VAR PrevDates = FILTER('log', 'log'[tar_systemid] = EARLIER('log'[tar_systemid]) && 'log'[msg_date] <= CurrentDate) RETURN CALCULATE(COUNTROWS(FILTER(PrevDates, [Threshold_anomaly_D] = 1)))
