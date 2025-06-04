@@ -23,3 +23,18 @@ VAR WeekMatch = WEEKNUM(Row_date,2) = WEEKNUM(TODAY(),2)
 VAR YearMatch = YEAR(Row_date) = YEAR(TODAY())
 RETURN
 IF(RolAvg < 0.05 && WeekMatch && YearMatch,1,0)
+
+RolAvg4 = CALCULATE(AVERAGE('log'[drive_d_avg_anom]), FILTER(ALL('log'), 'log'[tar_systemid] = MAX('log'[tar_systemid]) && 'log'[msg_date] <= MAX('log'[msg_date]) && 'log'[msg_date] > max('log'[msg_date]) - 5))
+
+Last5daysAvg = Var curreindex = 'log'[Row_Index]
+var systemID= 'log'[tar_systemid]
+RETURN AVERAGEX(FILTER('log', 'log'[tar_systemid] = systemID && 'log'[Row_Index] < curreindex && 'log'[Row_Index] >= curreindex - 5), 'log'[drive_d_avg_anom]
+
+Count_anomaly_5pointweek = CALCULATE(DISTINCTCOUNT('log'[tar_systemid]), FILTER('log',[5pointanomaly] = 1 && 'log'[WEEKSTART] = TODAY() - WEEKDAY(TODAY(),2) + 1))
+
+Current_week_anomalies = CALCULATE(DISTINCTCOUNT('log'[tar_systemid]), FILTER('log',[iSANANOMALY] = 1 && 'log'[WEEKSTART] = TODAY() - WEEKDAY(TODAY(),2) + 1))
+
+
+
+
+
