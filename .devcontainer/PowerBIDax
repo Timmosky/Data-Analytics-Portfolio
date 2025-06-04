@@ -34,6 +34,12 @@ Count_anomaly_5pointweek = CALCULATE(DISTINCTCOUNT('log'[tar_systemid]), FILTER(
 
 Current_week_anomalies = CALCULATE(DISTINCTCOUNT('log'[tar_systemid]), FILTER('log',[iSANANOMALY] = 1 && 'log'[WEEKSTART] = TODAY() - WEEKDAY(TODAY(),2) + 1))
 
+RolAvG5 = VAR Currsys = SELECTEDVALUE('log'[tar_systemid])
+VAR currINDEX = SELECTEDVALUE('log'[Row_Index])
+VAR last5 = TOPN(5, FILTER('log', 'log'[tar_systemid] = Currsys && 'log'[Row_Index] <= currINDEX),'log'[Row_Index], DESC)
+RETURN
+AVERAGEX(last5, 'log'[drive_d_avg_anom])
+
 
 
 
