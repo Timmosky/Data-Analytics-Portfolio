@@ -10,3 +10,16 @@ caphealthvalue = SWITCH(TRUE(), [AVG7DAYCAP] >= 0.5, "Healthy", [AVG7DAYCAP] <0.
 Consecutivelowdays = 
 VAR CurrentDate = 'log'[msg_date]
 VAR PrevDates = FILTER('log', 'log'[tar_systemid] = EARLIER('log'[tar_systemid]) && 'log'[msg_date] <= CurrentDate) RETURN CALCULATE(COUNTROWS(FILTER(PrevDates, [Threshold_anomaly_D] = 1)))
+
+
+
+Count_anomaly_5pointweek = CALCULATE(DISTINCTCOUNT('log'[tar_systemid]), 'log'[5pointanomaly] = 1)
+
+
+isanomalous_this_week = 
+VAR RolAvg = [RolAvg4]
+VAR Row_date = SELECTEDVALUE('log'[msg_date])
+VAR WeekMatch = WEEKNUM(Row_date,2) = WEEKNUM(TODAY(),2)
+VAR YearMatch = YEAR(Row_date) = YEAR(TODAY())
+RETURN
+IF(RolAvg < 0.05 && WeekMatch && YearMatch,1,0)
