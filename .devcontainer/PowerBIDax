@@ -40,6 +40,11 @@ VAR last5 = TOPN(5, FILTER('log', 'log'[tar_systemid] = Currsys && 'log'[Row_Ind
 RETURN
 AVERAGEX(last5, 'log'[drive_d_avg_anom])
 
+IF(SELECTEDVALUE('log'[General_aNOMALY]) == 1,"#FF0000" && SELECTEDVALUE('log'[General_aNOMALY]) == 0, "#4682B4")
+
+
+
+
 
 
 
