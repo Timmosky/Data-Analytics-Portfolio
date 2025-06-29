@@ -25,6 +25,9 @@ search_tool = Tool(
     func=tavily_tool.run,
     description="Use this to search the web for current or factual information."
 )
+tavily_api_key = st.secrets["tavily"]["api_key"]
 
+# Initialize the search tool
+search_tool = TavilySearchResults(api_key=tavily_api_key)
 api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=100)
 wiki_tool = WikipediaQueryRun(api_wrapper= api_wrapper)
