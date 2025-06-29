@@ -1,10 +1,23 @@
+import streamlit as st
 from langchain_community.tools import WikipediaQueryRun
 from langchain_community.utilities import WikipediaAPIWrapper
 from langchain.tools import Tool
 from langchain.tools.tavily_search import TavilySearchResults
 from datetime import datetime
-import streamlit as st
 
+# ✅ Load Tavily API key securely
+if "tavily" not in st.secrets or "api_key" not in st.secrets["tavily"]:
+    raise ValueError("Tavily API key not found in Streamlit secrets.")
+tavily_api_key = st.secrets["tavily"]["api_key"]
+
+# ✅ Define Tavily search tool
+tavily_tool = TavilySearchResults(api_key=tavily_api_key)
+
+# ✅ Define Wikipedia tool
+api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=100)
+wiki_tool = WikipediaQueryRun(api_wrapper=api_wrapper)
+
+# ✅ Define save-to-text tool
 def save_to_txt(data: str, filename: str = "research_output.txt"):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     formatted_text = f"--- Research Output ---\nTimestamp: {timestamp}\n\n{data}\n\n"
@@ -19,11 +32,4 @@ save_tool = Tool(
     func=save_to_txt,
     description="Saves structured research data to a text file.",
 )
-tavily_api_key = st.secrets["tavily"]["api_key"]
 
-tavily_tool = TavilySearchResults(api_key=tavily_api_key)
-
-
-
-api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=100)
-wiki_tool = WikipediaQueryRun(api_wrapper= api_wrapper)
