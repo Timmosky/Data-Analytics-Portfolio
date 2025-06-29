@@ -6,7 +6,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain.agents import create_tool_calling_agent
 from langchain.agents import AgentExecutor
-from tools import search_tool, wiki_tool, save_tool
+from tools import tavily_tool, wiki_tool, save_tool
 import streamlit as st
 import os
 
@@ -34,7 +34,7 @@ prompt = ChatPromptTemplate.from_messages(
         ("placeholder", "{agent_scratchpad}"),
     ]
 ).partial(format_instructions=parser.get_format_instructions())
-tools = [search_tool, wiki_tool, save_tool]
+tools = [tavily_tool, wiki_tool, save_tool]
 
 
 def get_agent(tools):
