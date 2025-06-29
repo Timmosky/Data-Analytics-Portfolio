@@ -14,7 +14,7 @@ import os
 load_dotenv()
 api_key = st.secrets.get("ANTHROPIC_API_KEY")
 tavily_api_key = st.secrets.get("tavily", {}).get("api_key")
-tavily_tool = TavilySearchResults(api_key=tavily_api_key)
+search_tool = TavilySearchResults(api_key=tavily_api_key)
 class ResearchResponse(BaseModel):
     summary:str
     tools_used: list[str]
