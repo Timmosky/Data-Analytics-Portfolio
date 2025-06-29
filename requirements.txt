@@ -1,4 +1,9 @@
-﻿joblib==1.4.2
-numpy==1.22.4
-scikit-learn==1.6.1
+langchain 
+wikipedia 
+langchain-community 
+langchain-openai
+langchain-anthropic
+python-dotenv
+pydantic
+duckduckgo-search
 
