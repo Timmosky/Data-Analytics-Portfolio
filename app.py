@@ -1,5 +1,5 @@
 import streamlit as st
-from tools import search_tool, wiki_tool, save_tool
+from tools import tavily_tool, wiki_tool, save_tool
 from langchain.agents import AgentExecutor  # make sure you import this
 from main import create_tool_calling_agent, get_agent, parser, llm, prompt  # adjust these as needed
 import os
@@ -7,7 +7,7 @@ if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 # Setup agent
-tools = [search_tool, wiki_tool, save_tool]
+tools = [tavily_tool, wiki_tool, save_tool]
 agent = get_agent(tools)
 agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
