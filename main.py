@@ -8,10 +8,11 @@ from langchain.agents import create_tool_calling_agent
 from langchain.agents import AgentExecutor
 from tools import search_tool, wiki_tool, save_tool
 import streamlit as st
+import os
 
 
 load_dotenv()
-
+api_key = st.secrets.get("ANTHROPIC_API_KEY")
 class ResearchResponse(BaseModel):
     summary:str
     tools_used: list[str]
