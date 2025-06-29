@@ -19,12 +19,6 @@ save_tool = Tool(
     description="Saves structured research data to a text file.",
 )
 
-
-search_tool = Tool(
-    name="Tavily Search",
-    func=tavily_tool.run,
-    description="Use this to search the web for current or factual information."
-)
 tavily_api_key = st.secrets["tavily"]["api_key"]
 
 # Initialize the search tool
