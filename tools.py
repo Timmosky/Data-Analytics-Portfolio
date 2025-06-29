@@ -4,6 +4,7 @@ from langchain_community.utilities import WikipediaAPIWrapper
 from langchain.tools import Tool
 from langchain.tools.tavily_search import TavilySearchResults
 from datetime import datetime
+import os
 
 # ✅ Load Tavily API key securely
 if "tavily" not in st.secrets or "api_key" not in st.secrets["tavily"]:
@@ -11,7 +12,9 @@ if "tavily" not in st.secrets or "api_key" not in st.secrets["tavily"]:
 tavily_api_key = st.secrets["tavily"]["api_key"]
 
 # ✅ Define Tavily search tool
-tavily_tool = TavilySearchResults(api_key=tavily_api_key)
+os.environ["TAVILY_API_KEY"] = st.secrets["tavily"]["api_key"]
+
+tavily_tool = TavilySearchResults()
 
 # ✅ Define Wikipedia tool
 api_wrapper = WikipediaAPIWrapper(top_k_results=1, doc_content_chars_max=100)
