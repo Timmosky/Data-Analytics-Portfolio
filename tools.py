@@ -3,6 +3,7 @@ from langchain_community.utilities import WikipediaAPIWrapper
 from langchain.tools import Tool
 from langchain.tools.tavily_search import TavilySearchResults
 from datetime import datetime
+import streamlit as st
 
 def save_to_txt(data: str, filename: str = "research_output.txt"):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
