@@ -12,7 +12,7 @@ agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
 
 st.set_page_config(page_title="Agentic AI", layout="centered")
-st.title("🧠 Timilehin's Agentic AI")
+st.title("🧠 Timilehin's AI Agent")
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
