@@ -28,6 +28,7 @@ if st.session_state.clear_input:
 for chat in st.session_state.chat_history:
     st.markdown(f"**You:** {chat['user']}")
     st.markdown(f"**Agent:** {chat['agent']}")
+    st.markdown(f"**Agent:**\n\n{chat['agent'].summary}")
 
 query = st.text_input("Ask your question:", key = "useer_input")
 
@@ -36,6 +37,7 @@ if query and st.session_state.get("last_question") != query:
         try:
             raw_response = agent_executor.invoke({"query": query})
             structured_response = parser.parse(raw_response.get("output")[0]["text"])
+            structured_response.summary = structured_response.summary.replace("\\n", "\n")
 
             st.session_state.chat_history.append({
                 "user": query,
