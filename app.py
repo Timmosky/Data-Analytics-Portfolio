@@ -28,7 +28,7 @@ if st.session_state.clear_input:
 for chat in st.session_state.chat_history:
     st.markdown(f"**You:** {chat['user']}")
     st.markdown(f"**Agent:** {chat['agent']}")
-    st.markdown(f"**Agent:**\n\n{chat['agent'].summary}")
+ 
 
 query = st.text_input("Ask your question:", key = "useer_input")
 
