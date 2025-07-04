@@ -16,13 +16,13 @@ with Dataset:
 with Modelling:
     st.header('Prediction Machine')
     st.text('This model was trained using Random Forest Classifier and consists of 8000 records of different clients marketing interactions and conversion activities.')
-    st.text('Instructions: Just enter the information of the prospect below and click predict to generate a result. Any unknown variable or information should be recorded as 0. No special characters such as commas or currency symbols. Assume currency to be USD $')
+    st.text('📢 Read Me : Enter the information of the prospect below and click predict to generate a result. Any unknown information should be recorded as 0 else model may generate an error. No special characters such as commas or currency symbols. Assume currency to be USD $')
 
     model = joblib.load('marketing_predictor3.joblib')
     def main():
         st.subheader('Prospect Conversion Predictor')
         Age = st.text_input('What is the age of the prospect?')
-        Income = st.slider('What is the monthly income of the prospect?', min_value = 1000, max_value= 300000, value = 1000, step = 1000)
+        Income = st.slider('What is the monthly income($) of the prospect?', min_value = 1000, max_value= 300000, value = 1000, step = 1000)
         Campaign_Channel = st.selectbox('What campaign channel can you attribute this prospect to?', options = ['Social Media', 'Email', 'PPC', 'Referral', 'SEO', 'Others'])
         AdSpend = st.text_input('How much did you spend advertising on this channel?')
         CampaignType = st.selectbox('What is the goal of the campaign?', options = ['Awareness', 'Retention', 'Conversion', 'Consideration'])
