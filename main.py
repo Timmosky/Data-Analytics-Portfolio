@@ -12,7 +12,11 @@ import os
 
 
 load_dotenv()
-api_key = st.secrets.get("ANTHROPIC_API_KEY")
+
+api_key = st.secrets["Anthropic"]["api_key"]
+
+os.environ["api_key"] = st.secrets["Anthropic"]["api_key"]
+
 class ResearchResponse(BaseModel):
     summary:str
     tools_used: list[str]
