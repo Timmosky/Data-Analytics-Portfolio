@@ -13,13 +13,13 @@ import os
 
 load_dotenv()
 
-api_key = st.secrets.get("anthropic_api_key")
+api_key = st.secrets.get("ANTHROPIC_API_KEY")
 
 class ResearchResponse(BaseModel):
     summary:str
     tools_used: list[str]
 
-llm = ChatAnthropic(model = "claude-3-5-sonnet-20241022")
+llm = ChatAnthropic(model = "claude-3-5-sonnet-20241022", api_key = api_key)
 parser = PydanticOutputParser(pydantic_object=ResearchResponse)
 prompt = ChatPromptTemplate.from_messages(
     [
