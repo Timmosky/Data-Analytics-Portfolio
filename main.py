@@ -13,7 +13,7 @@ import os
 
 load_dotenv()
 
-api_key = st.secrets.get("ANTHROPIC_API_KEY")
+api_key = st.secrets.get("anthropic_api_key")
 
 class ResearchResponse(BaseModel):
     summary:str
