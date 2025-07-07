@@ -15,8 +15,6 @@ load_dotenv()
 
 api_key = st.secrets["Anthropic"]["api_key"]
 
-os.environ["ANTHROPIC_API_KEY"] = st.secrets["Anthropic"]["api_key"]
-
 class ResearchResponse(BaseModel):
     summary:str
     tools_used: list[str]
