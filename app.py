@@ -11,7 +11,7 @@ agent = get_agent(tools)
 agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
 st.write("Anthropic Key:", repr(st.secrets.get("ANTHROPIC_API_KEY", "Missing")))
-st.write("Tavily Key:", repr(st.secrets.get("tavily", {}).get("api_key", "Missing")))
+
 
 st.set_page_config(page_title="Agentic AI", layout="centered")
 st.title("🧠 Timilehin's AI Agent")
