@@ -280,7 +280,7 @@ with system as (SELECT
   select DATEADD(week, datediff(week,0,cast(created_at as date)),0) as wekly
   Database [Dev_GPRS_Datamart]
 Table1 -item .[dbo].[tblDimItem]
-    
-    
+select DW_ITEM_KEY, item, item_description,modality,item_type,MMICV_USD, category, last_update_date, (0.95 * MMICV_USD) AS 'ARC(USD)'  from dbo.tblDimItem where MODALITY = 'US' order by DW_ITEM_KEY asc offset 0 rows fetch next 80 rows only
+
     
 ------------------------END OF ALL QUERIES--------------------------------------------------------------------------------------------------    
