@@ -276,8 +276,8 @@ with system as (SELECT
 ------------------------END OF ALL QUERIES-------------------------------------------------    
     
 
-  
-  
+ ---------------------------- SQL Script QEAS-------------------------
+  select DATEADD(week, datediff(week,0,cast(created_at as date)),0) as wekly
   
     
     
