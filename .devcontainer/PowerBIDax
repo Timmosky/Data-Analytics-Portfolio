@@ -51,6 +51,43 @@ Running_Mean = AVERAGEX(VALUES(Query1[timeGroupCW]),CALCULATE(AVERAGE(Query1[Nor
 STDEV = STDEVX.P(VALUES(Query1[timeGroupCW]),CALCULATE(AVERAGE(Query1[Normalrate])))
 
 
+-----------------------------------------------------------
+MeanNormalRate_Monthly_L12M =
+AVERAGEX(
+    VALUES('YourTable'[MonthGroup]),
+    CALCULATE(
+        AVERAGE('YourTable'[NormalRate]),
+        FILTER(
+            ALL('YourTable'),
+            'YourTable'[OrderDate] >= EDATE(MAX('YourTable'[OrderDate]), -12)
+                && 'YourTable'[OrderDate] <= MAX('YourTable'[OrderDate])
+                && 'YourTable'[Item] = MAX('YourTable'[Item])
+                && 'YourTable'[MonthGroup] = EARLIER('YourTable'[MonthGroup])
+        )
+    )
+)
+
+
+
+------------------------------------------------------------------------------------
+StdevNormalRate_Monthly_L12M =
+STDEVX.P(
+    VALUES('YourTable'[MonthGroup]),
+    CALCULATE(
+        AVERAGE('YourTable'[NormalRate]),
+        FILTER(
+            ALL('YourTable'),
+            'YourTable'[OrderDate] >= EDATE(MAX('YourTable'[OrderDate]), -12)
+                && 'YourTable'[OrderDate] <= MAX('YourTable'[OrderDate])
+                && 'YourTable'[Item] = MAX('YourTable'[Item])
+                && 'YourTable'[MonthGroup] = EARLIER('YourTable'[MonthGroup])
+        )
+    )
+)
+
+
+
+
 
 
 
