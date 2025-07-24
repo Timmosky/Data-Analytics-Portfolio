@@ -43,6 +43,14 @@ AVERAGEX(last5, 'log'[drive_d_avg_anom])
 IF(SELECTEDVALUE('log'[General_aNOMALY]) == 1,"#FF0000" && SELECTEDVALUE('log'[General_aNOMALY]) == 0, "#4682B4")
 
 
+------MONTHLY-------------------
+STD2 = CALCULATE(STDEV.P(Query1[MonthlyNormalrate]), ALLEXCEPT(Query1,Query1[Item]))
+MEAN = CALCULATE(AVERAGE(Query1[MonthlyNormalrate]), ALLEXCEPT(Query1,Query1[Item]))
+-------WEEKLY------------------
+Running_Mean = AVERAGEX(VALUES(Query1[timeGroupCW]),CALCULATE(AVERAGE(Query1[Normalrate])))
+STDEV = STDEVX.P(VALUES(Query1[timeGroupCW]),CALCULATE(AVERAGE(Query1[Normalrate])))
+
+
 
 
 
