@@ -92,5 +92,3 @@ Last12Months = FILTER(ALL(Query1), Query1[Order Date] >= EDATE(MAX(Query1[Order 
 
 
 
-
-
