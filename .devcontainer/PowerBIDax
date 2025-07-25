@@ -87,7 +87,7 @@ STDEVX.P(
 
 
 
-
+Last12Months = FILTER(ALL(Query1), Query1[Order Date] >= EDATE(MAX(Query1[Order Date]), -12) && Query1[Order Date] <= MAX(Query1[Order Date]))
 
 
 
