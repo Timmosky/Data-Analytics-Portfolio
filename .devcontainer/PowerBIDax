@@ -85,9 +85,43 @@ STDEVX.P(
     )
 )
 
-
-
 Last12Months = FILTER(ALL(Query1), Query1[Order Date] >= EDATE(MAX(Query1[Order Date]), -12) && Query1[Order Date] <= MAX(Query1[Order Date]))
+
+
+----- shifting per item upper limit--------------------
+TrailingUpperLimit = 
+VAR SELECETEDWEEKS = SELECTEDVALUE(ALERTWINDOWSELECTOR[TrailingWindow],52)
+var Multiplier = SELECTEDVALUE(StdDevSelector[Multiplier],2)
+VAR MaxDate = MAX(Last12Months[Order Date])
+var Starytdate = MaxDate - (SELECETEDWEEKS *7) +1
+VAR filtereddata = FILTER(
+    ALLEXCEPT(Last12Months, Last12Months[Item]), Last12Months[Order Date] >= Starytdate && Last12Months[Order Date] <= MaxDate)
+VAR mean = CALCULATE(AVERAGE(Last12Months[NR]),filtereddata)
+VAR stdde = CALCULATE(STDEV.P(Last12Months[NR]),filtereddata)
+        RETURN
+        mean + (Multiplier * stdde)
+
+
+
+---------------consistent-per-item upper limit-------------------------
+
+TrailingUpperLimit = 
+VAR SELECETEDWEEKS = SELECTEDVALUE(ALERTWINDOWSELECTOR[TrailingWindow],52)
+var Multiplier = SELECTEDVALUE(StdDevSelector[Multiplier],2)
+VAR MaxDate = CALCULATE(MAX(Last12Months[Order Date]), ALL(Last12Months))
+var Starytdate = MaxDate - (SELECETEDWEEKS *7) +1
+VAR filtereddata = FILTER(
+    ALLEXCEPT(Last12Months, Last12Months[Item]), Last12Months[Order Date] >= Starytdate && Last12Months[Order Date] <= MaxDate)
+VAR mean = CALCULATE(AVERAGE(Last12Months[NR]),filtereddata)
+VAR stdde = CALCULATE(STDEV.P(Last12Months[NR]),filtereddata)
+        RETURN
+        mean + (Multiplier * stdde)
+
+
+
+
+
+
 
 
 
