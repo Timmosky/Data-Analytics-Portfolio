@@ -10,8 +10,6 @@ tools = [tavily_tool, wiki_tool, save_tool]
 agent = get_agent(tools)
 agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
-st.write("Anthropic Key:", repr(st.secrets.get("ANTHROPIC_API_KEY", "Missing")))
-
 
 st.set_page_config(page_title="Agentic AI", layout="centered")
 st.title("🧠 Timilehin's AI Agent")
@@ -59,3 +57,4 @@ if query and st.session_state.get("last_question") != query:
 if st.button("🗑️ Clear Chat"):
     st.session_state.chat_history = []
     st.rerun()
+
