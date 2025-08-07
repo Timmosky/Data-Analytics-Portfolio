@@ -13,7 +13,8 @@ import os
 
 load_dotenv()
 
-api_key = st.secrets.get("ANTHROPIC_API_KEY")
+api_key = st.secrets["ANTHROPIC"]["api_key"]
+os.environ["ANTHROPIC_API_KEY"] = st.secrets["ANTHROPIC"]["api_key"]
 
 class ResearchResponse(BaseModel):
     summary:str
@@ -41,3 +42,4 @@ tools = [tavily_tool, wiki_tool, save_tool]
 
 def get_agent(tools):
     return create_tool_calling_agent(llm=llm, prompt=prompt, tools=tools)
+
