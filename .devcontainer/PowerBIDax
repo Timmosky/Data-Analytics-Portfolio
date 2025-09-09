@@ -117,8 +117,26 @@ VAR stdde = CALCULATE(STDEV.P(Last12Months[NR]),filtereddata)
         RETURN
         mean + (Multiplier * stdde)
 
+---------Exceedence----rate ------------------------------------------------
+Exceedance period(Trailing) = 
+var currentweek = MAX(Last12Months[Year_week])
+VAR currentitem = MAX(Last12Months[Item Description]) 
+Var threshold = SELECTEDVALUE('Exceedance Period'[WeeksAbove],1)
+var Maxlookback = 52
+Var offsets = GENERATESERIES(0, Maxlookback, 1)
+
+var firstzerooffset = MINX(offsets, Var o = [Value] 
+
+VAR wkDate = currentweek - o 
+VAR f1 = MAXX(FILTER(ALL(Last12Months),Last12Months[Item Description] = currentitem && Last12Months[Year_week] = wkDate),Last12Months[Exceedance_Flag])
 
 
+RETURN IF(COALESCE( f1, 0) = 0, o, BLANK()))
+
+var streak = IF(ISBLANK(firstzerooffset), Maxlookback + 1 , firstzerooffset)
+
+RETURN
+IF(streak >= threshold, streak, BLANK())
 
 
 
