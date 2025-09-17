@@ -140,7 +140,20 @@ IF(streak >= threshold, streak, BLANK())
 
 
 
-
+with cte as (select tar_systemid, msg_date, monitoring_name, monitoring_value, ROW_NUMBER() over(PARTITION by tar_systemid, msg_date, monitoring_name order by msg_date DESC) as rn from "us_prod_magellan_ul"."ul_logdb_monitoring_dtl" where (msg_date >= '2025-09-05' and msg_date <= '2025-09-09') and (monitoring_name like '%Bep_Battery_PA__ASOC%' or monitoring_name like '%Bep_Battery_PA__RSOC%') order by msg_date desc)
+select tar_systemid, msg_date, MAX(case when monitoring_name = 'Bep_Battery_PA1_ASOC' then (SELECT monitoring_value) end) as Bep_Battery_PA1_ASOC, 
+MAX(case when monitoring_name = 'Bep_Battery_PA1_RSOC' then (SELECT monitoring_value) end) AS Bep_Battery_PA1_RSOC , MAX(case when monitoring_name = 'Bep_Battery_PA2_ASOC' then (SELECT monitoring_value) end) AS Bep_Battery_PA2_ASOC ,
+MAX(case when monitoring_name = 'Bep_Battery_PA2_RSOC' then (SELECT monitoring_value) end) AS Bep_Battery_PA2_RSOC , 
+MAX(case when monitoring_name = 'Bep_Battery_PA3_ASOC' then (SELECT monitoring_value) end) AS Bep_Battery_PA3_ASOC, MAX(case when monitoring_name = 'Bep_Battery_PA3_RSOC' then (SELECT monitoring_value) end) AS Bep_Battery_PA3_RSOC, MAX(case when monitoring_name = 'Bep_Battery_PA4_ASOC' then (SELECT monitoring_value) end) AS Bep_Battery_PA4_ASOC, 
+MAX(case when monitoring_name = 'Bep_Battery_PA4_RSOC' then (SELECT monitoring_value) end) AS Bep_Battery_PA4_RSOC
+FROM 
+(select * from CTE where rn = 1  /*cast(msg_date as date)<= current_date*/ order by monitoring_name, msg_date desc) subquery 
+/*WHERE 
+tar_systemid = 'PL0302US14'*/
+GROUP BY 
+tar_systemid, msg_date
+ORDER BY 
+msg_date DESC;
 
 
 
