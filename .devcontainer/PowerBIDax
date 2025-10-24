@@ -156,4 +156,44 @@ ORDER BY
 msg_date DESC;
 
 
+--------
+
+TrailingUpperLimit =
+VAR SelectedMeanWeeks = SELECTEDVALUE( ALERTWINDOWSELECTOR[TrailingWindow], 104 )
+VAR SelectedStdWeeks  = SELECTEDVALUE( StdWindowSelector[StdWindow], SelectedMeanWeeks )  // default fallback
+
+VAR Multiplier = SELECTEDVALUE( StdDevSelector[Multiplier], 2 )
+
+VAR MaxDate = CALCULATE( MAX( Parts2122[Order Date] ), ALL( Parts2122 ) )
+
+/* mean window start (uses mean selector) */
+VAR MeanStartDate = MaxDate - ( SelectedMeanWeeks * 7 ) + 1
+
+/* std window start (uses separate std selector) */
+VAR StdStartDate = MaxDate - ( SelectedStdWeeks * 7 ) + 1
+
+/* filtered table for mean (keeps your ALLEXCEPT logic for Item Description) */
+VAR FilteredForMean =
+    FILTER(
+        ALLEXCEPT( Parts2122, Parts2122[Item Description] ),
+        Parts2122[Order Date] >= MeanStartDate
+            && Parts2122[Order Date] <= MaxDate
+    )
+
+/* filtered table for std (same scope but different date window) */
+VAR FilteredForStd =
+    FILTER(
+        ALLEXCEPT( Parts2122, Parts2122[Item Description] ),
+        Parts2122[Order Date] >= StdStartDate
+            && Parts2122[Order Date] <= MaxDate
+    )
+
+VAR Mean = CALCULATE( AVERAGE( Parts2122[Normal_Rate] ), FilteredForMean )
+VAR StdDev = CALCULATE( STDEV.P( Parts2122[Normal_Rate] ), FilteredForStd )
+
+RETURN
+Mean + ( Multiplier * StdDev )
+
+
+
 
