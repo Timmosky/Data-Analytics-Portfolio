@@ -193,7 +193,23 @@ VAR StdDev = CALCULATE( STDEV.P( Parts2122[Normal_Rate] ), FilteredForStd )
 
 RETURN
 Mean + ( Multiplier * StdDev )
+-------------------------------------------------
 
+ContinuousParts =
+ADDCOLUMNS(
+    DateItemScaffold,
+    "Quantity Ordered",
+        VAR CurrentDate = [Date]
+        VAR CurrentItem = [Item Description]
+        VAR Qty =
+            CALCULATE(
+                SUM( Parts2122[Quantity Ordered] ),
+                Parts2122[Order Date] = CurrentDate,
+                Parts2122[Item Description] = CurrentItem
+            )
+        RETURN
+            COALESCE( Qty, 0 )
+)
 
 
 
