@@ -213,3 +213,18 @@ ADDCOLUMNS(
 
 
 
+Exceedance period = 
+var currentweek = MAX(parts[WeekIndex]) ---- This helps me keep the logic to map latest time grouping
+VAR currentitem = SELECTEDVALUE(parts[Item Description]) ----- This helps me keep the logic to map latest items
+VAR currentfamily = SELECTEDVALUE(parts[Ultimate_family_name])
+Var threshold = SELECTEDVALUE('Exceedance Period'[WeeksAbove],1) 
+VAR Isanomaly = [TrailingAnomaly]
+VAR ItemHistory = FILTER(parts, parts[Item Description] = currentitem && parts[Ultimate_family_name] = currentfamily && parts[WeekIndex] <= currentweek)
+VAR AddFlags = ADDCOLUMNS(ItemHistory, "Flag", CALCULATE([TrailingAnomaly]))
+VAR OnlyAnomalies = FILTER(AddFlags, [Flag] = 1)
+VAR Distinctweeks = SUMMARIZE(OnlyAnomalies, parts[WeekIndex])
+VAR Streakcount = COUNTROWS(TOPN(9999, Distinctweeks, parts[WeekIndex], DESC))
+RETURN
+IF(Isanomaly = 1 && Streakcount >= threshold, Streakcount, BLANK())
+
+
