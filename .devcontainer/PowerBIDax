@@ -213,18 +213,31 @@ ADDCOLUMNS(
 
 
 
-Exceedance period = 
-var currentweek = MAX(parts[WeekIndex]) ---- This helps me keep the logic to map latest time grouping
-VAR currentitem = SELECTEDVALUE(parts[Item Description]) ----- This helps me keep the logic to map latest items
+Exceedance Period = 
+VAR currentweek = MAX(parts[WeekIndex])
+VAR currentitem = SELECTEDVALUE(parts[Item Description])
 VAR currentfamily = SELECTEDVALUE(parts[Ultimate_family_name])
-Var threshold = SELECTEDVALUE('Exceedance Period'[WeeksAbove],1) 
+VAR threshold = SELECTEDVALUE('Exceedance Period'[WeeksAbove], 1)
 VAR Isanomaly = [TrailingAnomaly]
-VAR ItemHistory = FILTER(parts, parts[Item Description] = currentitem && parts[Ultimate_family_name] = currentfamily && parts[WeekIndex] <= currentweek)
-VAR AddFlags = ADDCOLUMNS(ItemHistory, "Flag", CALCULATE([TrailingAnomaly]))
-VAR OnlyAnomalies = FILTER(AddFlags, [Flag] = 1)
-VAR Distinctweeks = SUMMARIZE(OnlyAnomalies, parts[WeekIndex])
-VAR Streakcount = COUNTROWS(TOPN(9999, Distinctweeks, parts[WeekIndex], DESC))
+
+-- Count consecutive weeks backwards from current week
+VAR ConsecutiveCount = 
+    COUNTROWS(
+        FILTER(
+            GENERATESERIES(1, currentweek, 1),
+            VAR WeekToCheck = currentweek - [Value] + 1
+            VAR IsAnomalyInWeek = 
+                CALCULATE(
+                    [TrailingAnomaly],
+                    parts[WeekIndex] = WeekToCheck,
+                    parts[Item Description] = currentitem,
+                    parts[Ultimate_family_name] = currentfamily
+                )
+            RETURN IsAnomalyInWeek = 1 && [Value] <= currentweek
+        )
+    )
+
 RETURN
-IF(Isanomaly = 1 && Streakcount >= threshold, Streakcount, BLANK())
+IF(Isanomaly = 1 && ConsecutiveCount >= threshold, ConsecutiveCount, BLANK())
 
 
