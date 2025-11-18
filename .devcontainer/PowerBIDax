@@ -457,6 +457,40 @@ IF (
     RETURN DIVIDE ( WeightedSum, TotalWeight )
 )
 
+EWMA_Approximation = 
+VAR Lambda = 0.2
+VAR CurrentDate = MAX( Parts2122[Order Date] )
+VAR CurrentItem = MAX( Parts2122[Item Description] )
+VAR LookbackWeeks = 20  -- Adjust based on how much history you want
 
+/* Get recent historical data */
+VAR RecentData = 
+    CALCULATETABLE(
+        ADDCOLUMNS(
+            SUMMARIZE( Parts2122, Parts2122[Order Date] ),
+            "Rate", AVERAGE( Parts2122[Normal_Rate] ),
+            "Age", DATEDIFF( Parts2122[Order Date], CurrentDate, DAY ) / 7
+        ),
+        Parts2122[Item Description] = CurrentItem,
+        Parts2122[Order Date] <= CurrentDate,
+        Parts2122[Order Date] >= CurrentDate - (LookbackWeeks * 7)
+    )
+
+/* Calculate exponentially weighted average */
+VAR WeightedSum = 
+    SUMX(
+        RecentData,
+        VAR Weight = POWER( 1 - Lambda, [Age] )
+        RETURN [Rate] * Weight
+    )
+
+VAR TotalWeight = 
+    SUMX(
+        RecentData,
+        POWER( 1 - Lambda, [Age] )
+    )
+
+RETURN
+DIVIDE( WeightedSum, TotalWeight )
 
 
