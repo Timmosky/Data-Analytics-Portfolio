@@ -395,7 +395,68 @@ IF ( ISBLANK(CurrentItem) || ISBLANK(CurrentDate), BLANK(),
 
     RETURN
         IF ( TotalWeight = 0, BLANK(), WeightedSum / TotalWeight )
+
+
+
+
+EWMA_Rate_Adjustable =
+VAR Lambda =
+    SELECTEDVALUE ( Lambda_Selector[Lambda], 0.2 )
+
+VAR CurrentItem =
+    SELECTEDVALUE ( Parts2122[Item Description] )
+
+VAR CurrentDate =
+    MAX ( Parts2122[Order Date] )
+
+IF (
+    ISBLANK(CurrentItem) || ISBLANK(CurrentDate),
+    BLANK(),
+    
+    VAR BaseTable =
+        SUMMARIZE (
+            FILTER (
+                Parts2122,
+                Parts2122[Item Description] = CurrentItem &&
+                Parts2122[Order Date] <= CurrentDate
+            ),
+            Parts2122[Order Date],
+            "Rate", AVERAGE ( Parts2122[Normal_Rate] )
+        )
+
+    VAR RankedTable =
+        ADDCOLUMNS (
+            BaseTable,
+            "DateRank",
+                RANKX (
+                    BaseTable,
+                    [Order Date],
+                    ,
+                    ASC,
+                    DENSE
+                )
+        )
+
+    VAR MaxRank =
+        MAXX ( RankedTable, [DateRank] )
+
+    VAR WeightedSum =
+        SUMX (
+            RankedTable,
+            VAR Age = MaxRank - [DateRank]
+            VAR Weight = Lambda * POWER (1 - Lambda, Age)
+            RETURN [Rate] * Weight
+        )
+
+    VAR TotalWeight =
+        SUMX (
+            RankedTable,
+            Lambda * POWER (1 - Lambda, MaxRank - [DateRank] )
+        )
+
+    RETURN DIVIDE ( WeightedSum, TotalWeight )
 )
+
 
 
 
