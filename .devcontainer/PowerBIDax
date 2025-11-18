@@ -281,6 +281,25 @@ VAR UpperLimit = [EWMA_UpperLimit]
 
 RETURN
 IF( CurrentEWMA > UpperLimit, 1, 0 )
+------ Baseline stat------
+EWMA_Baseline_Mean = 
+VAR CurrentItem = MAX( Parts2122[Item Description] )
+
+RETURN
+CALCULATE(
+    AVERAGE( Parts2122[Normal_Rate] ),
+    Parts2122[Item Description] = CurrentItem,
+    Parts2122[Order Date] >= DATE(2021, 7, 1),
+    Parts2122[Order Date] <= DATE(2021, 12, 31)
+)
+
+
+
+
+
+
+
+
 
 
 
@@ -316,5 +335,67 @@ VAR ConsecutiveCount =
 
 RETURN
 IF(Isanomaly = 1 && ConsecutiveCount >= threshold, ConsecutiveCount, BLANK())
+
+
+
+
+EWMA_Rate_Adjustable =
+VAR Lambda =
+    SELECTEDVALUE ( Lambda_Selector[Lambda], 0.2 )
+
+VAR CurrentItem =
+    SELECTEDVALUE ( Parts2122[Item Description] )
+
+VAR CurrentDate =
+    MAX ( Parts2122[Order Date] )
+
+-- If item or date context is missing, exit early
+IF ( ISBLANK(CurrentItem) || ISBLANK(CurrentDate), BLANK(),
+    
+    VAR HistoricalData =
+        ADDCOLUMNS (
+            FILTER (
+                ADDCOLUMNS (
+                    VALUES ( Parts2122[Order Date] ),
+                    "Rate", CALCULATE ( AVERAGE ( Parts2122[Normal_Rate] ) )
+                ),
+                Parts2122[Item Description] = CurrentItem
+                    && Parts2122[Order Date] <= CurrentDate
+            ),
+            "DateRank",
+                RANKX (
+                    FILTER (
+                        VALUES ( Parts2122[Order Date] ),
+                        Parts2122[Item Description] = CurrentItem
+                            && Parts2122[Order Date] <= CurrentDate
+                    ),
+                    [Order Date],
+                    ,
+                    ASC,
+                    DENSE
+                )
+        )
+
+    VAR MaxRank =
+        MAXX ( HistoricalData, [DateRank] )
+
+    VAR WeightedSum =
+        SUMX (
+            HistoricalData,
+            VAR Age = MaxRank - [DateRank]
+            VAR Weight = Lambda * POWER ( 1 - Lambda, Age )
+            RETURN [Rate] * Weight
+        )
+
+    VAR TotalWeight =
+        SUMX (
+            HistoricalData,
+            Lambda * POWER ( 1 - Lambda, MaxRank - [DateRank] )
+        )
+
+    RETURN
+        IF ( TotalWeight = 0, BLANK(), WeightedSum / TotalWeight )
+)
+
 
 
