@@ -211,8 +211,85 @@ ADDCOLUMNS(
             COALESCE( Qty, 0 )
 )
 
+------ Step 1----------------
+EWMA_Rate = 
+VAR Lambda = 0.2  -- Smoothing constant
+VAR CurrentRate = [Normal_Rate]
+VAR CurrentDate = MAX( Parts2122[Order Date] )
+VAR CurrentItem = MAX( Parts2122[Item Description] )
+
+/* Get previous week's EWMA */
+VAR PreviousDate = 
+    CALCULATE(
+        MAX( Parts2122[Order Date] ),
+        Parts2122[Item Description] = CurrentItem,
+        Parts2122[Order Date] < CurrentDate
+    )
+
+VAR PriorEWMA = 
+    CALCULATE(
+        [EWMA_Rate],
+        Parts2122[Order Date] = PreviousDate,
+        Parts2122[Item Description] = CurrentItem
+    )
+
+/* Calculate new EWMA */
+RETURN
+IF(
+    ISBLANK(PriorEWMA),
+    CurrentRate,  -- First observation
+    Lambda * CurrentRate + (1 - Lambda) * PriorEWMA
+)
 
 
+--------step 2-----------
+EWMA_UpperLimit = 
+VAR Lambda = 0.2
+VAR L = 2.7  -- Control limit multiplier
+VAR CurrentItem = MAX( Parts2122[Item Description] )
+
+/* Calculate baseline statistics from 2021 */
+VAR BaselineStart = DATE(2021, 7, 1)
+VAR BaselineEnd = DATE(2021, 12, 31)
+
+VAR TargetMean = 
+    CALCULATE(
+        AVERAGE( Parts2122[Normal_Rate] ),
+        Parts2122[Item Description] = CurrentItem,
+        Parts2122[Order Date] >= BaselineStart,
+        Parts2122[Order Date] <= BaselineEnd
+    )
+
+VAR Sigma = 
+    CALCULATE(
+        STDEV.S( Parts2122[Normal_Rate] ),
+        Parts2122[Item Description] = CurrentItem,
+        Parts2122[Order Date] >= BaselineStart,
+        Parts2122[Order Date] <= BaselineEnd
+    )
+
+/* EWMA control limit formula */
+VAR ControlLimitWidth = L * Sigma * SQRT( Lambda / (2 - Lambda) )
+
+RETURN
+TargetMean + ControlLimitWidth
+
+--------Step 3---------------
+EWMA_Anomaly = 
+VAR CurrentEWMA = [EWMA_Rate]
+VAR UpperLimit = [EWMA_UpperLimit]
+
+RETURN
+IF( CurrentEWMA > UpperLimit, 1, 0 )
+
+
+
+
+
+
+
+
+-----exceedence-----------/-//
 Exceedance Period = 
 VAR currentweek = MAX(parts[WeekIndex])
 VAR currentitem = SELECTEDVALUE(parts[Item Description])
