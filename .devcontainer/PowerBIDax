@@ -1,3 +1,69 @@
+EWMA_Rate_Adjustable_Fixed = 
+VAR Lambda = SELECTEDVALUE( Lambda_Selector[Lambda], 0.2 )
+VAR CurrentDate = MAX( parts[Order Date] )
+VAR CurrentItem = MAX( parts[Item Description] )
+VAR CurrentRate = MAX( parts[Normal_Rate] )
+
+/* Get all historical dates for this item, sorted */
+VAR HistoricalDates = 
+    CALCULATETABLE(
+        VALUES( parts[Order Date] ),
+        parts[Item Description] = CurrentItem,
+        parts[Order Date] <= CurrentDate
+    )
+
+/* Add rankings and rates */
+VAR HistoricalData = 
+    ADDCOLUMNS(
+        HistoricalDates,
+        "Rate", 
+            CALCULATE( AVERAGE( parts[Normal_Rate] ) ),
+        "DateRank", 
+            RANKX(
+                HistoricalDates,
+                parts[Order Date],
+                ,
+                ASC,
+                DENSE
+            )
+    )
+
+VAR MaxRank = MAXX( HistoricalData, [DateRank] )
+
+/* Check if this is the first observation */
+VAR IsFirstObservation = (MaxRank = 1)
+
+/* Calculate EWMA using weighted formula */
+VAR WeightedSum = 
+    SUMX(
+        HistoricalData,
+        VAR Position = [DateRank]
+        VAR Age = MaxRank - Position
+        VAR Weight = Lambda * POWER(1 - Lambda, Age)
+        RETURN [Rate] * Weight
+    )
+
+VAR TotalWeight = 
+    SUMX(
+        HistoricalData,
+        VAR Position = [DateRank]
+        VAR Age = MaxRank - Position
+        RETURN Lambda * POWER(1 - Lambda, Age)
+    )
+
+VAR EWMA = DIVIDE( WeightedSum, TotalWeight )
+
+RETURN
+IF( IsFirstObservation, CurrentRate, EWMA )
+
+
+
+
+
+
+
+
+
 
 ------------------Capacity Alert disk drive----------------
 risk_level_Drive_D = IF(DiskDriveCapTable[DRIVE_D]>0.5, "Excellent_Capacity", IF(AND(DiskDriveCapTable[DRIVE_D]<=0.5, DiskDriveCapTable[DRIVE_D]>=0.3),"Good_capacity", IF(AND(DiskDriveCapTable[DRIVE_D]<0.3, DiskDriveCapTable[DRIVE_D]>=0.16), "Moderate_capacity", IF(AND(DiskDriveCapTable[DRIVE_D]<0.16, DiskDriveCapTable[DRIVE_D]>=0.07), "Warning_Low_Capacity", "Extremely_Low_Capacity"))))
