@@ -735,11 +735,190 @@ VAR Limit = [Quarterly_YoY_UpperLimit_FiscalWeek]
 RETURN
 IF( NOT ISBLANK(Limit) && CurrentRate > Limit, 1, 0 )
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+nrewwww
+
 -------------------------------------------------------------------------------------
+Quarterly_YoY_UpperLimit_FiscalWeek_Fixed = 
+VAR CurrentItem = MAX( parts[Item Description] )
+VAR CurrentFiscalWeek = MAX( parts[Order Fiscal Week] )
+VAR CurrentYear = VALUE( LEFT( FORMAT( CurrentFiscalWeek, "0" ), 4 ) )
+VAR CurrentWeekNum = VALUE( RIGHT( FORMAT( CurrentFiscalWeek, "0" ), 2 ) )
+
+/* Determine quarter range */
+VAR QuarterStart = 
+    SWITCH(
+        TRUE(),
+        CurrentWeekNum >= 1 && CurrentWeekNum <= 13, 1,
+        CurrentWeekNum >= 14 && CurrentWeekNum <= 26, 14,
+        CurrentWeekNum >= 27 && CurrentWeekNum <= 39, 27,
+        CurrentWeekNum >= 40 && CurrentWeekNum <= 53, 40,
+        1
+    )
+
+VAR QuarterEnd = 
+    SWITCH(
+        TRUE(),
+        CurrentWeekNum >= 1 && CurrentWeekNum <= 13, 13,
+        CurrentWeekNum >= 14 && CurrentWeekNum <= 26, 26,
+        CurrentWeekNum >= 27 && CurrentWeekNum <= 39, 39,
+        CurrentWeekNum >= 40 && CurrentWeekNum <= 53, 53,
+        13
+    )
+
+/* Prior year range */
+VAR PriorYear = CurrentYear - 1
+VAR PriorStart = (PriorYear * 100) + QuarterStart
+VAR PriorEnd = (PriorYear * 100) + QuarterEnd
+
+/* Calculate baseline from prior year quarter */
+VAR PriorMean = 
+    CALCULATE(
+        AVERAGE( parts[Normal_Rate] ),
+        parts[Item Description] = CurrentItem,
+        parts[Order Fiscal Week] >= PriorStart,
+        parts[Order Fiscal Week] <= PriorEnd
+    )
+
+VAR PriorStdDev = 
+    CALCULATE(
+        STDEV.S( parts[Normal_Rate] ),
+        parts[Item Description] = CurrentItem,
+        parts[Order Fiscal Week] >= PriorStart,
+        parts[Order Fiscal Week] <= PriorEnd
+    )
+
+VAR PriorDataPoints = 
+    CALCULATE(
+        COUNTROWS( parts ),
+        parts[Item Description] = CurrentItem,
+        parts[Order Fiscal Week] >= PriorStart,
+        parts[Order Fiscal Week] <= PriorEnd
+    )
+
+/* FALLBACK 1: Use all available 2021 data if no prior quarter exists */
+VAR Fallback2021Mean = 
+    CALCULATE(
+        AVERAGE( parts[Normal_Rate] ),
+        parts[Item Description] = CurrentItem,
+        parts[Order Fiscal Week] >= 202101,
+        parts[Order Fiscal Week] <= 202153
+    )
+
+VAR Fallback2021StdDev = 
+    CALCULATE(
+        STDEV.S( parts[Normal_Rate] ),
+        parts[Item Description] = CurrentItem,
+        parts[Order Fiscal Week] >= 202101,
+        parts[Order Fiscal Week] <= 202153
+    )
+
+/* FALLBACK 2: Use current quarter EXCLUDING current week if in 2021 */
+VAR CurrentQuarterStart = (CurrentYear * 100) + QuarterStart
+VAR CurrentQuarterEnd = (CurrentYear * 100) + QuarterEnd
+
+VAR CurrentQuarterMean = 
+    CALCULATE(
+        AVERAGE( parts[Normal_Rate] ),
+        parts[Item Description] = CurrentItem,
+        parts[Order Fiscal Week] >= CurrentQuarterStart,
+        parts[Order Fiscal Week] < CurrentFiscalWeek  -- Exclude current week
+    )
+
+VAR CurrentQuarterStdDev = 
+    CALCULATE(
+        STDEV.S( parts[Normal_Rate] ),
+        parts[Item Description] = CurrentItem,
+        parts[Order Fiscal Week] >= CurrentQuarterStart,
+        parts[Order Fiscal Week] < CurrentFiscalWeek
+    )
+
+VAR CurrentQuarterDataPoints = 
+    CALCULATE(
+        COUNTROWS( parts ),
+        parts[Item Description] = CurrentItem,
+        parts[Order Fiscal Week] >= CurrentQuarterStart,
+        parts[Order Fiscal Week] < CurrentFiscalWeek
+    )
+
+/* Choose the best baseline */
+VAR FinalMean = 
+    SWITCH(
+        TRUE(),
+        PriorDataPoints >= 3, PriorMean,  -- Use prior year if available
+        CurrentYear = 2021 && CurrentQuarterDataPoints >= 3, CurrentQuarterMean,  -- Use current quarter for 2021
+        NOT ISBLANK(Fallback2021Mean), Fallback2021Mean,  -- Use all 2021
+        BLANK()
+    )
+
+VAR FinalStdDev = 
+    SWITCH(
+        TRUE(),
+        PriorDataPoints >= 3, PriorStdDev,
+        CurrentYear = 2021 && CurrentQuarterDataPoints >= 3, CurrentQuarterStdDev,
+        NOT ISBLANK(Fallback2021StdDev), Fallback2021StdDev,
+        BLANK()
+    )
+
+/* Safeguard against zero StdDev */
+VAR SafeStdDev = IF( ISBLANK(FinalStdDev) || FinalStdDev = 0, FinalMean * 0.3, FinalStdDev )
+
+VAR Multiplier = 2
+
+RETURN
+IF( NOT ISBLANK(FinalMean), FinalMean + (Multiplier * SafeStdDev), BLANK() )
 
 
 
 
+
+
+
+
+
+--------------------------------------------------------
+Quarterly_YoY_Anomaly_2022Only = 
+VAR CurrentFiscalWeek = MAX( parts[Order Fiscal Week] )
+VAR CurrentYear = VALUE( LEFT( FORMAT( CurrentFiscalWeek, "0" ), 4 ) )
+
+/* Only calculate for 2022 and beyond */
+RETURN
+IF(
+    CurrentYear >= 2022,
+    VAR CurrentRate = MAX( parts[Normal_Rate] )
+    VAR Limit = [Quarterly_YoY_UpperLimit_FiscalWeek]
+    RETURN IF( NOT ISBLANK(Limit) && CurrentRate > Limit, 1, 0 ),
+    0  -- Return 0 for 2021
+)
+
+-----------------------------------------------
+
+Combined_Anomaly_Smart = 
+VAR CurrentFiscalWeek = MAX( parts[Order Fiscal Week] )
+VAR CurrentYear = VALUE( LEFT( FORMAT( CurrentFiscalWeek, "0" ), 4 ) )
+VAR Rolling8Week = [TrailingAnomaly]
+VAR QuarterlyYoY = [Quarterly_YoY_Anomaly_2022Only]
+
+RETURN
+IF( Rolling8Week = 1 OR QuarterlyYoY = 1, 1, 0 )
 
 
 
