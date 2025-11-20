@@ -82,3 +82,11 @@ dataFrame.write\
 # Script generated for node destination
 
 job.commit()
+
+
+
+Clean_Quarter =
+VAR Raw = TRIM(parts[Order Quarter])
+VAR Y = LEFT(Raw,4)
+VAR Q = "Q" & SUBSTITUTE(RIGHT(Raw, LEN(Raw)-FIND("-",Raw)), "0", "")
+RETURN Y & "-" & Q
