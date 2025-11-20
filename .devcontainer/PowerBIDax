@@ -552,3 +552,281 @@ IF(
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+----------------------------------------------------------------
+Calculated_Quarter = 
+VAR FiscalWeek = MAX( parts[Order Fiscal Week] )
+VAR Year = VALUE( LEFT( FORMAT( FiscalWeek, "0" ), 4 ) )
+VAR WeekNum = VALUE( RIGHT( FORMAT( FiscalWeek, "0" ), 2 ) )
+
+VAR Quarter = 
+    SWITCH(
+        TRUE(),
+        WeekNum >= 1 && WeekNum <= 13, "Q1",
+        WeekNum >= 14 && WeekNum <= 26, "Q2",
+        WeekNum >= 27 && WeekNum <= 39, "Q3",
+        WeekNum >= 40 && WeekNum <= 53, "Q4",
+        BLANK()
+    )
+
+RETURN
+FORMAT( Year, "0000" ) & "-" & Quarter
+
+---------------------------------------------------------------------------------------
+
+Quarterly_YoY_UpperLimit_FiscalWeek = 
+VAR CurrentItem = MAX( parts[Item Description] )
+VAR CurrentFiscalWeek = MAX( parts[Order Fiscal Week] )
+
+/* Extract year and week number */
+VAR CurrentYear = VALUE( LEFT( FORMAT( CurrentFiscalWeek, "0" ), 4 ) )
+VAR CurrentWeekNum = VALUE( RIGHT( FORMAT( CurrentFiscalWeek, "0" ), 2 ) )
+
+/* Determine which quarter based on week number */
+VAR QuarterStart = 
+    SWITCH(
+        TRUE(),
+        CurrentWeekNum >= 1 && CurrentWeekNum <= 13, 1,
+        CurrentWeekNum >= 14 && CurrentWeekNum <= 26, 14,
+        CurrentWeekNum >= 27 && CurrentWeekNum <= 39, 27,
+        CurrentWeekNum >= 40 && CurrentWeekNum <= 53, 40,
+        1
+    )
+
+VAR QuarterEnd = 
+    SWITCH(
+        TRUE(),
+        CurrentWeekNum >= 1 && CurrentWeekNum <= 13, 13,
+        CurrentWeekNum >= 14 && CurrentWeekNum <= 26, 26,
+        CurrentWeekNum >= 27 && CurrentWeekNum <= 39, 39,
+        CurrentWeekNum >= 40 && CurrentWeekNum <= 53, 53,
+        13
+    )
+
+/* Prior year same quarter fiscal week range */
+VAR PriorYear = CurrentYear - 1
+VAR PriorQuarterStart = (PriorYear * 100) + QuarterStart
+VAR PriorQuarterEnd = (PriorYear * 100) + QuarterEnd
+
+/* Calculate baseline statistics from prior year same quarter */
+VAR PriorMean = 
+    CALCULATE(
+        AVERAGE( parts[Normal_Rate] ),
+        parts[Item Description] = CurrentItem,
+        parts[Order Fiscal Week] >= PriorQuarterStart,
+        parts[Order Fiscal Week] <= PriorQuarterEnd
+    )
+
+VAR PriorStdDev = 
+    CALCULATE(
+        STDEV.S( parts[Normal_Rate] ),
+        parts[Item Description] = CurrentItem,
+        parts[Order Fiscal Week] >= PriorQuarterStart,
+        parts[Order Fiscal Week] <= PriorQuarterEnd
+    )
+
+VAR DataPoints = 
+    CALCULATE(
+        COUNTROWS( parts ),
+        parts[Item Description] = CurrentItem,
+        parts[Order Fiscal Week] >= PriorQuarterStart,
+        parts[Order Fiscal Week] <= PriorQuarterEnd
+    )
+
+/* Fallback to all 2021 if no prior quarter data */
+VAR Fallback2021Mean = 
+    CALCULATE(
+        AVERAGE( parts[Normal_Rate] ),
+        parts[Item Description] = CurrentItem,
+        parts[Order Fiscal Week] >= 202101,
+        parts[Order Fiscal Week] <= 202153
+    )
+
+VAR Fallback2021StdDev = 
+    CALCULATE(
+        STDEV.S( parts[Normal_Rate] ),
+        parts[Item Description] = CurrentItem,
+        parts[Order Fiscal Week] >= 202101,
+        parts[Order Fiscal Week] <= 202153
+    )
+
+/* Choose baseline */
+VAR FinalMean = IF( DataPoints >= 3, PriorMean, Fallback2021Mean )
+VAR FinalStdDev = IF( DataPoints >= 3, PriorStdDev, Fallback2021StdDev )
+
+/* Safeguard */
+VAR SafeStdDev = IF( ISBLANK(FinalStdDev) || FinalStdDev = 0, FinalMean * 0.3, FinalStdDev )
+
+VAR Multiplier = 2
+
+RETURN
+IF( NOT ISBLANK(FinalMean), FinalMean + (Multiplier * SafeStdDev), BLANK() )
+
+-------------------------------------------------------------------------------
+
+Quarterly_YoY_Anomaly_FiscalWeek = 
+VAR CurrentRate = MAX( parts[Normal_Rate] )
+VAR Limit = [Quarterly_YoY_UpperLimit_FiscalWeek]
+
+RETURN
+IF( NOT ISBLANK(Limit) && CurrentRate > Limit, 1, 0 )
+
+-------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
