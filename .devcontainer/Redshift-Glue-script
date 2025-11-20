@@ -72,3 +72,38 @@ ChangeSchema_node1747673028064 = ApplyMapping.apply(frame=TransformedTable_node1
 Stagingtable_node1747673092687 = glueContext.write_dynamic_frame.from_options(frame=ChangeSchema_node1747673028064, connection_type="redshift", connection_options={"redshiftTmpDir": "s3://aws-glue-assets-435557266949-us-east-2/temporary/", "useConnectionProperties": "true", "dbtable": "public.pqbench", "connectionName": "Redshiffpqconnect", "preactions": "CREATE TABLE IF NOT EXISTS public.pqbench (tar_systemid VARCHAR, msg_date VARCHAR, customername VARCHAR, site_name VARCHAR, file_key INTEGER, DRIVE_C INTEGER, DRIVE_D INTEGER, DRIVE_E INTEGER, DRIVE_Z INTEGER);"}, transformation_ctx="Stagingtable_node1747673092687")
 
 job.commit()
+
+
+
+
+
+Debug_PriorQuarter =
+VAR CurrentQuarter = SELECTEDVALUE(parts[Order Quarter])
+VAR CurrentYear = VALUE(LEFT(CurrentQuarter,4))
+VAR QuarterLabel = RIGHT(CurrentQuarter,2)
+VAR PriorYearQuarter = FORMAT(CurrentYear - 1, "0000") & "-" & QuarterLabel
+RETURN PriorYearQuarter
+
+
+-------
+
+
+Debug_2021_Rows =
+CALCULATE(
+    COUNTROWS(parts),
+    parts[Item Description] = SELECTEDVALUE(parts[Item Description]),
+    YEAR(parts[Order Date]) = 2021
+)
+----------------------------
+
+
+Debug_PriorQuarter_Rows =
+VAR CurrentItem = SELECTEDVALUE(parts[Item Description])
+VAR PriorQ = [Debug_PriorQuarter]
+RETURN
+CALCULATE(
+    COUNTROWS(parts),
+    parts[Item Description] = CurrentItem,
+    parts[Order Quarter] = PriorQ
+)
+
