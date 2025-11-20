@@ -1,69 +1,3 @@
-EWMA_Rate_Adjustable_Fixed = 
-VAR Lambda = SELECTEDVALUE( Lambda_Selector[Lambda], 0.2 )
-VAR CurrentDate = MAX( parts[Order Date] )
-VAR CurrentItem = MAX( parts[Item Description] )
-VAR CurrentRate = MAX( parts[Normal_Rate] )
-
-/* Get all historical dates for this item, sorted */
-VAR HistoricalDates = 
-    CALCULATETABLE(
-        VALUES( parts[Order Date] ),
-        parts[Item Description] = CurrentItem,
-        parts[Order Date] <= CurrentDate
-    )
-
-/* Add rankings and rates */
-VAR HistoricalData = 
-    ADDCOLUMNS(
-        HistoricalDates,
-        "Rate", 
-            CALCULATE( AVERAGE( parts[Normal_Rate] ) ),
-        "DateRank", 
-            RANKX(
-                HistoricalDates,
-                parts[Order Date],
-                ,
-                ASC,
-                DENSE
-            )
-    )
-
-VAR MaxRank = MAXX( HistoricalData, [DateRank] )
-
-/* Check if this is the first observation */
-VAR IsFirstObservation = (MaxRank = 1)
-
-/* Calculate EWMA using weighted formula */
-VAR WeightedSum = 
-    SUMX(
-        HistoricalData,
-        VAR Position = [DateRank]
-        VAR Age = MaxRank - Position
-        VAR Weight = Lambda * POWER(1 - Lambda, Age)
-        RETURN [Rate] * Weight
-    )
-
-VAR TotalWeight = 
-    SUMX(
-        HistoricalData,
-        VAR Position = [DateRank]
-        VAR Age = MaxRank - Position
-        RETURN Lambda * POWER(1 - Lambda, Age)
-    )
-
-VAR EWMA = DIVIDE( WeightedSum, TotalWeight )
-
-RETURN
-IF( IsFirstObservation, CurrentRate, EWMA )
-
-
-
-
-
-
-
-
-
 
 ------------------Capacity Alert disk drive----------------
 risk_level_Drive_D = IF(DiskDriveCapTable[DRIVE_D]>0.5, "Excellent_Capacity", IF(AND(DiskDriveCapTable[DRIVE_D]<=0.5, DiskDriveCapTable[DRIVE_D]>=0.3),"Good_capacity", IF(AND(DiskDriveCapTable[DRIVE_D]<0.3, DiskDriveCapTable[DRIVE_D]>=0.16), "Moderate_capacity", IF(AND(DiskDriveCapTable[DRIVE_D]<0.16, DiskDriveCapTable[DRIVE_D]>=0.07), "Warning_Low_Capacity", "Extremely_Low_Capacity"))))
@@ -403,160 +337,124 @@ RETURN
 IF(Isanomaly = 1 && ConsecutiveCount >= threshold, ConsecutiveCount, BLANK())
 
 
+---------------------------------------------------
+Quarterly_YoY_UpperLimit = 
+VAR CurrentItem = MAX( parts[Item Description] )
+VAR CurrentQuarter = MAX( parts[Order Quarter] )
+VAR CurrentYear = VALUE( LEFT( CurrentQuarter, 4 ) )
+VAR QuarterLabel = RIGHT( CurrentQuarter, 2 )
+VAR PriorYearQuarter = FORMAT( CurrentYear - 1, "0000" ) & "-" & QuarterLabel
 
-
-EWMA_Rate_Adjustable =
-VAR Lambda =
-    SELECTEDVALUE ( Lambda_Selector[Lambda], 0.2 )
-
-VAR CurrentItem =
-    SELECTEDVALUE ( Parts2122[Item Description] )
-
-VAR CurrentDate =
-    MAX ( Parts2122[Order Date] )
-
--- If item or date context is missing, exit early
-IF ( ISBLANK(CurrentItem) || ISBLANK(CurrentDate), BLANK(),
-    
-    VAR HistoricalData =
-        ADDCOLUMNS (
-            FILTER (
-                ADDCOLUMNS (
-                    VALUES ( Parts2122[Order Date] ),
-                    "Rate", CALCULATE ( AVERAGE ( Parts2122[Normal_Rate] ) )
-                ),
-                Parts2122[Item Description] = CurrentItem
-                    && Parts2122[Order Date] <= CurrentDate
-            ),
-            "DateRank",
-                RANKX (
-                    FILTER (
-                        VALUES ( Parts2122[Order Date] ),
-                        Parts2122[Item Description] = CurrentItem
-                            && Parts2122[Order Date] <= CurrentDate
-                    ),
-                    [Order Date],
-                    ,
-                    ASC,
-                    DENSE
-                )
-        )
-
-    VAR MaxRank =
-        MAXX ( HistoricalData, [DateRank] )
-
-    VAR WeightedSum =
-        SUMX (
-            HistoricalData,
-            VAR Age = MaxRank - [DateRank]
-            VAR Weight = Lambda * POWER ( 1 - Lambda, Age )
-            RETURN [Rate] * Weight
-        )
-
-    VAR TotalWeight =
-        SUMX (
-            HistoricalData,
-            Lambda * POWER ( 1 - Lambda, MaxRank - [DateRank] )
-        )
-
-    RETURN
-        IF ( TotalWeight = 0, BLANK(), WeightedSum / TotalWeight )
-
-
-
-
-EWMA_Rate_Adjustable =
-VAR Lambda =
-    SELECTEDVALUE ( Lambda_Selector[Lambda], 0.2 )
-
-VAR CurrentItem =
-    SELECTEDVALUE ( Parts2122[Item Description] )
-
-VAR CurrentDate =
-    MAX ( Parts2122[Order Date] )
-
-IF (
-    ISBLANK(CurrentItem) || ISBLANK(CurrentDate),
-    BLANK(),
-    
-    VAR BaseTable =
-        SUMMARIZE (
-            FILTER (
-                Parts2122,
-                Parts2122[Item Description] = CurrentItem &&
-                Parts2122[Order Date] <= CurrentDate
-            ),
-            Parts2122[Order Date],
-            "Rate", AVERAGE ( Parts2122[Normal_Rate] )
-        )
-
-    VAR RankedTable =
-        ADDCOLUMNS (
-            BaseTable,
-            "DateRank",
-                RANKX (
-                    BaseTable,
-                    [Order Date],
-                    ,
-                    ASC,
-                    DENSE
-                )
-        )
-
-    VAR MaxRank =
-        MAXX ( RankedTable, [DateRank] )
-
-    VAR WeightedSum =
-        SUMX (
-            RankedTable,
-            VAR Age = MaxRank - [DateRank]
-            VAR Weight = Lambda * POWER (1 - Lambda, Age)
-            RETURN [Rate] * Weight
-        )
-
-    VAR TotalWeight =
-        SUMX (
-            RankedTable,
-            Lambda * POWER (1 - Lambda, MaxRank - [DateRank] )
-        )
-
-    RETURN DIVIDE ( WeightedSum, TotalWeight )
-)
-
-EWMA_Approximation = 
-VAR Lambda = 0.2
-VAR CurrentDate = MAX( Parts2122[Order Date] )
-VAR CurrentItem = MAX( Parts2122[Item Description] )
-VAR LookbackWeeks = 20  -- Adjust based on how much history you want
-
-/* Get recent historical data */
-VAR RecentData = 
-    CALCULATETABLE(
-        ADDCOLUMNS(
-            SUMMARIZE( Parts2122, Parts2122[Order Date] ),
-            "Rate", AVERAGE( Parts2122[Normal_Rate] ),
-            "Age", DATEDIFF( Parts2122[Order Date], CurrentDate, DAY ) / 7
-        ),
-        Parts2122[Item Description] = CurrentItem,
-        Parts2122[Order Date] <= CurrentDate,
-        Parts2122[Order Date] >= CurrentDate - (LookbackWeeks * 7)
+/* Calculate prior year quarter statistics */
+VAR PriorMean = 
+    CALCULATE(
+        AVERAGE( parts[Normal_Rate] ),
+        parts[Item Description] = CurrentItem,
+        parts[Order Quarter] = PriorYearQuarter
     )
 
-/* Calculate exponentially weighted average */
-VAR WeightedSum = 
-    SUMX(
-        RecentData,
-        VAR Weight = POWER( 1 - Lambda, [Age] )
-        RETURN [Rate] * Weight
+VAR PriorStdDev = 
+    CALCULATE(
+        STDEV.S( parts[Normal_Rate] ),
+        parts[Item Description] = CurrentItem,
+        parts[Order Quarter] = PriorYearQuarter
     )
 
-VAR TotalWeight = 
-    SUMX(
-        RecentData,
-        POWER( 1 - Lambda, [Age] )
+/* Data point check */
+VAR DataPoints = 
+    CALCULATE(
+        COUNTROWS( parts ),
+        parts[Item Description] = CurrentItem,
+        parts[Order Quarter] = PriorYearQuarter
     )
+
+/* Fallback: if no prior year data, use 2021 baseline */
+VAR Fallback2021Mean = 
+    CALCULATE(
+        AVERAGE( parts[Normal_Rate] ),
+        parts[Item Description] = CurrentItem,
+        parts[Order Date] >= DATE(2021, 1, 1),
+        parts[Order Date] <= DATE(2021, 12, 31)
+    )
+
+VAR Fallback2021StdDev = 
+    CALCULATE(
+        STDEV.S( parts[Normal_Rate] ),
+        parts[Item Description] = CurrentItem,
+        parts[Order Date] >= DATE(2021, 1, 1),
+        parts[Order Date] <= DATE(2021, 12, 31)
+    )
+
+/* Use prior year if available, otherwise use 2021 */
+VAR FinalMean = IF( DataPoints >= 3, PriorMean, Fallback2021Mean )
+VAR FinalStdDev = IF( DataPoints >= 3, PriorStdDev, Fallback2021StdDev )
+
+/* Safeguard against zero StdDev */
+VAR SafeStdDev = IF( ISBLANK(FinalStdDev) || FinalStdDev = 0, FinalMean * 0.3, FinalStdDev )
+
+VAR Multiplier = 2
 
 RETURN
-DIVIDE( WeightedSum, TotalWeight )
+IF( NOT ISBLANK(FinalMean), FinalMean + (Multiplier * SafeStdDev), BLANK() )
+
+
+
+
+
+
+-------
+
+Quarterly_YoY_Anomaly = 
+VAR CurrentRate = MAX( parts[Normal_Rate] )
+VAR Limit = [Quarterly_YoY_UpperLimit]
+
+RETURN
+IF( NOT ISBLANK(Limit) && CurrentRate > Limit, 1, 0 )
+
+
+----------
+
+Combined_Anomaly_Severity = 
+VAR Rolling8Week = [TrailingAnomaly]
+VAR QuarterlyYoY = [Quarterly_YoY_Anomaly]
+
+RETURN
+SWITCH(
+    TRUE(),
+    Rolling8Week = 1 AND QuarterlyYoY = 1, 3,  -- High Severity (both methods)
+    Rolling8Week = 1, 2,  -- Medium Severity (short-term spike)
+    QuarterlyYoY = 1, 1,  -- Low Severity (elevated vs prior year)
+    0  -- Normal
+)
+
+---------- severity tracker ========
+
+Combined_Anomaly_Label = 
+VAR Severity = [Combined_Anomaly_Severity]
+
+RETURN
+SWITCH(
+    Severity,
+    3, "🔴 Critical - Both Methods",
+    2, "🟡 Spike - Short-term",
+    1, "🟠 Elevated - vs Prior Year",
+    "✅ Normal"
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
