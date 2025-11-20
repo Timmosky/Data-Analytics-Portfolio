@@ -107,3 +107,37 @@ CALCULATE(
     parts[Order Quarter] = PriorQ
 )
 
+
+
+
+
+
+
+Clean_Quarter =
+VAR Raw = TRIM(parts[Order Quarter])
+
+-- Extract Year (first 4 digits anywhere in the string)
+VAR YearText =
+    MID(
+        Raw,
+        SEARCH("20", Raw, 1),   -- find "20"
+        4                       -- get 4 digits
+    )
+
+-- Extract quarter number (the number after Q)
+VAR Q_Position =
+    SEARCH("Q", Raw, 1)
+
+VAR QuarterNumber =
+    MID(
+        Raw,
+        Q_Position + 1,
+        2                       -- get up to 2 chars (1 or 01)
+    )
+
+-- Remove non-numeric junk (e.g., "01", "1 ", "1-")
+VAR QuarterNumClean =
+    VALUE(QuarterNumber)
+
+RETURN
+    YearText & "-Q" & QuarterNumClean
