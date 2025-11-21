@@ -222,3 +222,31 @@ SWITCH (
     BLANK ()
 )
 
+------------------------------------
+First 8W Exceed Quarter :=
+VAR CurrItem =
+    SELECTEDVALUE(parts[Item Description])
+
+VAR CurrYear =
+    SELECTEDVALUE(parts[Order Fiscal Year])
+
+RETURN
+MINX(
+    FILTER(
+        ADDCOLUMNS(
+            SUMMARIZE(
+                FILTER(
+                    ALLSELECTED(parts),
+                    parts[Item Description] = CurrItem &&
+                    parts[Order Fiscal Year] = CurrYear
+                ),
+                parts[Item Description],
+                parts[Order Fiscal Year],
+                parts[FQ_Num]
+            ),
+            "EP8", CALCULATE([Exceedance_8W])
+        ),
+        [EP8] >= 2
+    ),
+    parts[FQ_Num]
+)
