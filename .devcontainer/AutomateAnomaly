@@ -154,3 +154,71 @@ Run anomaly detection	SageMaker Processing
 Schedule or orchestrate	EventBridge / Step Functions
 Send alerts	Lambda + SNS
 View or analyze results	Athena, QuickSight, or download
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+First 8W Exceed Quarter :=
+VAR CurrItem  = SELECTEDVALUE ( parts[Item Description] )
+VAR CurrYear  = SELECTEDVALUE ( 'DateTable'[FiscalYear] )
+
+RETURN
+MINX (
+    FILTER (
+        ADDCOLUMNS (
+            SUMMARIZE (
+                ALL ( parts ),
+                parts[Item Description],
+                'DateTable'[FiscalYear],
+                'DateTable'[FiscalQuarter]
+            ),
+            "EP8", CALCULATE ( [Exceedance_8W] )
+        ),
+        [Item Description] = CurrItem
+            && 'DateTable'[FiscalYear] = CurrYear
+            && [EP8] >= 2              -- 2+ consecutive weeks
+    ),
+    'DateTable'[FiscalQuarter]
+)
+----------------------------------------------------------------------------
+
+Combined Anomaly Category :=
+VAR CurrItem     = SELECTEDVALUE ( parts[Item Description] )
+VAR CurrYear     = SELECTEDVALUE ( 'DateTable'[FiscalYear] )
+VAR CurrQuarter  = SELECTEDVALUE ( 'DateTable'[FiscalQuarter] )
+
+VAR Ex8          = [Exceedance_8W]
+VAR ExQ          = [Exceedance_QTR]
+
+VAR First8Q      = [First 8W Exceed Quarter]
+
+-- Is a sustained anomaly allowed here?
+VAR SustainedAllowed =
+    NOT ISBLANK ( First8Q )             -- 8W anomaly happened this year
+        && CurrQuarter >= First8Q       -- not before the first 8W spike
+        && CurrQuarter <= First8Q + 1   -- at most 1 quarter later
+
+RETURN
+SWITCH (
+    TRUE (),
+
+    -- 1) Sustained anomaly (quarterly) – only if allowed by 8W rule
+    ExQ >= 2 && SustainedAllowed, "Sustained anomaly detected",
+
+    -- 2) Plain anomaly from 8-week logic
+    Ex8 >= 2,                           "Anomaly detected",
+
+    -- 3) No flag
+    BLANK ()
+)
+
