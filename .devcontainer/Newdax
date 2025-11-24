@@ -1,5 +1,41 @@
+Combined_Anomaly_Category_Detailed = 
+VAR Exceedance8Week = [Exceedance_8Week]
+VAR ExceedanceQuarterly = [Exceedance_Quarterly]
+VAR IsSustainedValid = [Is_Sustained_Anomaly_Valid]
+VAR CurrentQuarter = [Current_Quarter_Number]
+VAR TriggerQuarter = [First_8Week_Trigger_Quarter]
+VAR IsInTriggerQuarter = CurrentQuarter = TriggerQuarter
 
-
+RETURN
+SWITCH(
+    TRUE(),
+    /* In trigger quarter with 8-week spike */
+    IsInTriggerQuarter && Exceedance8Week >= 2, 
+        "Anomaly Detected (Initial Trigger)",
+    
+    /* In trigger quarter with quarterly consecutive but no 8-week */
+    IsInTriggerQuarter && ExceedanceQuarterly >= 2,
+        "Sustained Anomaly Detected (Same Quarter)",
+    
+    /* After trigger quarter within valid range */
+    ExceedanceQuarterly >= 2 && IsSustainedValid = 1 && NOT IsInTriggerQuarter,
+        "Sustained Anomaly Detected",
+    
+    /* 8-week anomaly outside trigger quarter */
+    Exceedance8Week >= 2,
+        "Anomaly Detected",
+    
+    /* Quarterly anomaly outside valid range */
+    ExceedanceQuarterly >= 2,
+        "Quarterly Anomaly (Out of Range)",
+    
+    /* Single spikes */
+    [TrailingAnomaly] = 1 OR [Quarterly_YoY_Anomaly] = 1,
+        "Single Spike",
+    
+    "Normal"
+)
+--------------------------------------------------------------------------------
 Combined_Anomaly_Category = 
 VAR Exceedance8Week = [Exceedance_8Week]
 VAR ExceedanceQuarterly = [Exceedance_Quarterly]
