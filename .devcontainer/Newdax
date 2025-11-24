@@ -136,7 +136,46 @@ IF(
 )
 
 
+First_8Week_Trigger_Quarter_Rolling = 
+VAR CurrentItem = MAX( parts[Item Description] )
+VAR CurrentYear = [Current_Year]
+VAR CurrentFiscalWeek = MAX( parts[Order Fiscal Week] )
 
+/* Find the most recent week where exceedance >= 2 */
+VAR MostRecentTriggerWeek = 
+    MAXX(
+        FILTER(
+            CALCULATETABLE(
+                parts,
+                parts[Item Description] = CurrentItem,
+                parts[Order Fiscal Week] <= CurrentFiscalWeek
+            ),
+            VAR WeekContext = parts[Order Fiscal Week]
+            VAR YearContext = VALUE( LEFT( FORMAT( WeekContext, "0" ), 4 ) )
+            VAR ExceedanceValue = 
+                CALCULATE(
+                    [Exceedance_8Week],
+                    parts[Order Fiscal Week] = WeekContext
+                )
+            RETURN YearContext = CurrentYear && ExceedanceValue >= 2
+        ),
+        parts[Order Fiscal Week]
+    )
+
+/* Extract quarter from that week */
+VAR TriggerWeekNum = VALUE( RIGHT( FORMAT( MostRecentTriggerWeek, "0" ), 2 ) )
+
+VAR TriggerQuarter = 
+    SWITCH(
+        TRUE(),
+        TriggerWeekNum >= 1 && TriggerWeekNum <= 13, 1,
+        TriggerWeekNum >= 14 && TriggerWeekNum <= 26, 2,
+        TriggerWeekNum >= 27 && TriggerWeekNum <= 39, 3,
+        TriggerWeekNum >= 40 && TriggerWeekNum <= 53, 4,
+        BLANK()
+    )
+
+RETURN TriggerQuarter
 
 
 
