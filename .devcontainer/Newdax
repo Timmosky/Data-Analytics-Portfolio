@@ -1,3 +1,45 @@
+
+Combined_Anomaly_Category = 
+VAR Exceedance8Week = [Exceedance_8Week]
+VAR ExceedanceQuarterly = [Exceedance_Quarterly]
+VAR CurrentQuarter = [Current_Quarter_Number]
+VAR TriggerQuarter = [First_8Week_Trigger_Quarter]
+
+/* Calculate if we're in valid range (0-2 quarters from trigger) */
+VAR Had8WeekTrigger = NOT ISBLANK( TriggerQuarter )
+VAR QuarterDistance = CurrentQuarter - TriggerQuarter
+VAR IsWithinValidRange = Had8WeekTrigger && QuarterDistance >= 0 && QuarterDistance <= 2
+
+/* Check if in trigger quarter specifically */
+VAR IsInTriggerQuarter = CurrentQuarter = TriggerQuarter
+
+RETURN
+SWITCH(
+    TRUE(),
+    /* PRIORITY 1: In trigger quarter with 8-week spike → Initial Anomaly */
+    IsInTriggerQuarter && Exceedance8Week >= 2, 
+        "Anomaly Detected",
+    
+    /* PRIORITY 2: Quarterly ≥2 AND within valid range (0-2 quarters) → Sustained */
+    ExceedanceQuarterly >= 2 && IsWithinValidRange, 
+        "Sustained Anomaly Detected",
+    
+    /* PRIORITY 3: 8-week spike outside trigger quarter */
+    Exceedance8Week >= 2, 
+        "Anomaly Detected",
+    
+    /* PRIORITY 4: Quarterly ≥2 but OUTSIDE valid range (3+ quarters or no trigger) */
+    ExceedanceQuarterly >= 2, 
+        "Quarterly Anomaly (Out of Range)",
+    
+    /* PRIORITY 5: Individual spikes */
+    [TrailingAnomaly] = 1 OR [Quarterly_YoY_Anomaly] = 1, 
+        "Single Spike",
+    
+    /* PRIORITY 6: Normal */
+    "Normal"
+)
+--------------------------
 Combined_Anomaly_Category_Detailed = 
 VAR Exceedance8Week = [Exceedance_8Week]
 VAR ExceedanceQuarterly = [Exceedance_Quarterly]
