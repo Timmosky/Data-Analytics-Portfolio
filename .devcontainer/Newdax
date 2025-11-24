@@ -1,3 +1,40 @@
+
+
+Combined_Anomaly_Category = 
+VAR Exceedance8Week = [Exceedance_8Week]
+VAR ExceedanceQuarterly = [Exceedance_Quarterly]
+VAR IsSustainedValid = [Is_Sustained_Anomaly_Valid]
+
+RETURN
+SWITCH(
+    TRUE(),
+    /* PRIORITY 1: Sustained Anomaly - must check FIRST */
+    ExceedanceQuarterly >= 2 && IsSustainedValid = 1, "Sustained Anomaly Detected",
+    
+    /* PRIORITY 2: Both methods detect consecutive anomalies but NOT valid for sustained */
+    Exceedance8Week >= 2 && ExceedanceQuarterly >= 2, "Both Methods - Out of Range",
+    
+    /* PRIORITY 3: 8-week consecutive anomaly only */
+    Exceedance8Week >= 2, "Anomaly Detected",
+    
+    /* PRIORITY 4: Quarterly consecutive anomaly but outside valid range */
+    ExceedanceQuarterly >= 2, "Quarterly Anomaly (Out of Range)",
+    
+    /* PRIORITY 5: Individual anomalies but not consecutive */
+    [TrailingAnomaly] = 1 OR [Quarterly_YoY_Anomaly] = 1, "Single Spike",
+    
+    /* PRIORITY 6: Normal */
+    "Normal"
+)
+
+
+
+
+
+
+
+-----------------------------------------------------
+
 First_8Week_Trigger_Quarter_Rolling = 
 VAR CurrentItem = MAX( parts[Item Description] )
 VAR CurrentYear = [Current_Year]
