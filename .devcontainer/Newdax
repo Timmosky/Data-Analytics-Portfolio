@@ -1,1 +1,153 @@
+-----Step 1------------------
+
+Current_Quarter_Number = 
+VAR FiscalWeek = MAX( parts[Order Fiscal Week] )
+VAR WeekNum = VALUE( RIGHT( FORMAT( FiscalWeek, "0" ), 2 ) )
+
+VAR QuarterNum = 
+    SWITCH(
+        TRUE(),
+        WeekNum >= 1 && WeekNum <= 13, 1,
+        WeekNum >= 14 && WeekNum <= 26, 2,
+        WeekNum >= 27 && WeekNum <= 39, 3,
+        WeekNum >= 40 && WeekNum <= 53, 4,
+        BLANK()
+    )
+
+RETURN QuarterNum
+
+
+-----------------Step 2--------------
+Current_Year = 
+VAR FiscalWeek = MAX( parts[Order Fiscal Week] )
+VAR Year = VALUE( LEFT( FORMAT( FiscalWeek, "0" ), 4 ) )
+
+RETURN Year
+
+---------------------step 3------------------
+
+First_8Week_Trigger_Quarter_Rolling = 
+VAR CurrentItem = MAX( parts[Item Description] )
+VAR CurrentYear = [Current_Year]
+VAR CurrentFiscalWeek = MAX( parts[Order Fiscal Week] )
+
+/* Find the most recent week (up to current) where 8-week exceedance >= 2 */
+VAR MostRecentTriggerWeek = 
+    CALCULATE(
+        MAX( parts[Order Fiscal Week] ),
+        parts[Item Description] = CurrentItem,
+        parts[Order Fiscal Week] <= CurrentFiscalWeek,
+        [Current_Year] = CurrentYear,
+        [Exceedance_8Week] >= 2
+    )
+
+/* Extract quarter from that week */
+VAR TriggerWeekNum = VALUE( RIGHT( FORMAT( MostRecentTriggerWeek, "0" ), 2 ) )
+
+VAR TriggerQuarter = 
+    SWITCH(
+        TRUE(),
+        TriggerWeekNum >= 1 && TriggerWeekNum <= 13, 1,
+        TriggerWeekNum >= 14 && TriggerWeekNum <= 26, 2,
+        TriggerWeekNum >= 27 && TriggerWeekNum <= 39, 3,
+        TriggerWeekNum >= 40 && TriggerWeekNum <= 53, 4,
+        BLANK()
+    )
+
+RETURN TriggerQuarter
+
+----------step 4----------------------
+
+Is_Sustained_Anomaly_Valid = 
+VAR CurrentQuarter = [Current_Quarter_Number]
+VAR FirstTriggerQuarter = [First_8Week_Trigger_Quarter]
+
+/* Check if there was an 8-week trigger this year */
+VAR Had8WeekTrigger = NOT ISBLANK( FirstTriggerQuarter )
+
+/* Check if current quarter is within 1 quarter of the trigger */
+VAR QuarterDistance = ABS( CurrentQuarter - FirstTriggerQuarter )
+VAR IsWithinRange = QuarterDistance <= 1
+
+RETURN
+IF( Had8WeekTrigger && IsWithinRange, TRUE(), FALSE() )
+
+
+
+------------------------------step 5--------------------------
+
+Combined_Anomaly_Category = 
+VAR Exceedance8Week = [Exceedance_8Week]
+VAR ExceedanceQuarterly = [Exceedance_Quarterly]
+VAR IsSustainedValid = [Is_Sustained_Anomaly_Valid]
+
+RETURN
+SWITCH(
+    TRUE(),
+    /* Sustained Anomaly: Quarterly ≥2 AND valid based on 8-week trigger */
+    ExceedanceQuarterly >= 2 && IsSustainedValid = TRUE(), "Sustained Anomaly Detected",
+    
+    /* Regular Anomaly: 8-week ≥2 */
+    Exceedance8Week >= 2, "Anomaly Detected",
+    
+    /* Individual anomalies but not consecutive */
+    [TrailingAnomaly] = 1 OR [Quarterly_YoY_Anomaly] = 1, "Single Spike",
+    
+    /* Normal */
+    "Normal"
+)
+
+----------------------------step 6----------------------------
+Combined_Anomaly_Severity = 
+VAR Category = [Combined_Anomaly_Category]
+
+RETURN
+SWITCH(
+    Category,
+    "Sustained Anomaly Detected", 3,  -- Critical
+    "Anomaly Detected", 2,            -- Warning
+    "Single Spike", 1,                 -- Info
+    0                                  -- Normal
+)
+
+
+------------step 7------------------------
+Anomaly_Flag_Details = 
+VAR Category = [Combined_Anomaly_Category]
+VAR Exceedance8Week = [Exceedance_8Week]
+VAR ExceedanceQuarterly = [Exceedance_Quarterly]
+VAR CurrentQuarter = "Q" & [Current_Quarter_Number]
+VAR TriggerQuarter = 
+    IF( 
+        NOT ISBLANK([First_8Week_Trigger_Quarter]), 
+        "Q" & [First_8Week_Trigger_Quarter], 
+        "None" 
+    )
+
+RETURN
+IF(
+    Category <> "Normal",
+    Category & 
+    " | 8W: " & IF( ISBLANK(Exceedance8Week), "0", FORMAT(Exceedance8Week, "0") ) & 
+    " | Q: " & IF( ISBLANK(ExceedanceQuarterly), "0", FORMAT(ExceedanceQuarterly, "0") ) &
+    " | Current: " & CurrentQuarter &
+    " | Trigger: " & TriggerQuarter,
+    "Normal"
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
