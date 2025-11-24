@@ -346,11 +346,49 @@ VAR TriggerQuarter =
 
 RETURN TriggerQuarter
 
+--------------------------------------------
+Exceedance_pp_YOY_ = 
+var currentweek = MAX(parts[Order Fiscal Week])
+VAR currentitem = MAX(parts[Item Description]) 
+VAR current_family = MAX(parts[Ultimate_family_name])
+Var threshold = SELECTEDVALUE('Exceedance Period'[WeeksAbove],1)
+var Maxlookback = 52
+Var offsets = GENERATESERIES(0, Maxlookback, 1)
+
+var firstzerooffset = MINX(offsets, Var o = [Value] 
+
+VAR wkDate = currentweek - o 
+VAR f1 = MAXX(FILTER(ALL(parts[Item Description], parts[Ultimate_family_name], parts[Order Fiscal Week]), parts[Item Description] = currentitem && parts[Ultimate_family_name] = current_family && parts[Order Fiscal Week] = wkDate),parts[Exceedance_Flag_YOY])
 
 
+RETURN IF(COALESCE( f1, 0) = 0, o, BLANK()))
+
+var streak = IF(ISBLANK(firstzerooffset), Maxlookback + 1 , firstzerooffset)
+
+RETURN
+IF(streak >= threshold, streak, BLANK())
+
+--------------
+Exceedance_pp = 
+var currentweek = MAX(parts[Order Fiscal Week])
+VAR currentitem = MAX(parts[Item Description]) 
+VAR current_family = MAX(parts[Ultimate_family_name])
+Var threshold = SELECTEDVALUE('Exceedance Period'[WeeksAbove],1)
+var Maxlookback = 52
+Var offsets = GENERATESERIES(0, Maxlookback, 1)
+
+var firstzerooffset = MINX(offsets, Var o = [Value] 
+
+VAR wkDate = currentweek - o 
+VAR f1 = MAXX(FILTER(ALL(parts[Item Description], parts[Ultimate_family_name], parts[Order Fiscal Week]), parts[Item Description] = currentitem && parts[Ultimate_family_name] = current_family && parts[Order Fiscal Week] = wkDate),parts[Exceedance_Flag])
 
 
+RETURN IF(COALESCE( f1, 0) = 0, o, BLANK()))
 
+var streak = IF(ISBLANK(firstzerooffset), Maxlookback + 1 , firstzerooffset)
+
+RETURN
+IF(streak >= threshold, streak, BLANK())
 
 
 
