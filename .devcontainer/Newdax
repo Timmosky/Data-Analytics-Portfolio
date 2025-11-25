@@ -391,8 +391,60 @@ RETURN
 IF(streak >= threshold, streak, BLANK())
 
 
+----------------------------------------
+First_8Week_Trigger_Quarter_Rolling = 
+VAR CurrentItem = MAX( parts[Item Description] )
+VAR CurrentYear = [Current_Year]
+VAR CurrentFiscalWeek = MAX( parts[Order Fiscal Week] )
 
+/* Get all weeks up to (and including) current week */
+VAR WeeksUpToCurrent = 
+    CALCULATETABLE(
+        VALUES( parts[Order Fiscal Week] ),
+        parts[Item Description] = CurrentItem,
+        INT( parts[Order Fiscal Week] / 100 ) = CurrentYear,
+        parts[Order Fiscal Week] <= CurrentFiscalWeek  /* KEY: Only weeks up to current */
+    )
 
+/* Add exceedance for each week */
+VAR WeeksWithExceedance = 
+    ADDCOLUMNS(
+        WeeksUpToCurrent,
+        "@FiscalWeek", parts[Order Fiscal Week],
+        "@Exceedance", 
+            VAR WeekContext = parts[Order Fiscal Week]
+            RETURN
+            CALCULATE(
+                [Exceedance_8Week],
+                parts[Order Fiscal Week] = WeekContext,
+                parts[Item Description] = CurrentItem
+            )
+    )
+
+/* Filter to trigger weeks (exceedance ≥ 2) */
+VAR TriggerWeeks = 
+    FILTER(
+        WeeksWithExceedance,
+        [@Exceedance] >= 2
+    )
+
+/* Get MOST RECENT trigger week (MAXX = maximum/latest) */
+VAR MostRecentTriggerWeek = MAXX( TriggerWeeks, [@FiscalWeek] )
+
+/* Extract quarter from that week */
+VAR TriggerWeekNum = MOD( MostRecentTriggerWeek, 100 )
+
+VAR TriggerQuarter = 
+    SWITCH(
+        TRUE(),
+        TriggerWeekNum >= 1 && TriggerWeekNum <= 13, 1,
+        TriggerWeekNum >= 14 && TriggerWeekNum <= 26, 2,
+        TriggerWeekNum >= 27 && TriggerWeekNum <= 39, 3,
+        TriggerWeekNum >= 40 && TriggerWeekNum <= 53, 4,
+        BLANK()
+    )
+
+RETURN TriggerQuarter
 
 
 
