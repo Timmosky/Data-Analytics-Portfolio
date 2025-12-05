@@ -459,3 +459,15 @@ SWITCH(TRUE(), HasUnhealthy, "Unhealthy", Haswarning, "Warning", "Stable"))
 
 ------------------------------
 Unhealthy_systems = CALCULATE([Total Systems (Weekly)], WeeklyHealthSummarytable[WeekHealth] = "Unhealthy")
+---------------------------------------------------------------------
+
+AnomalyEvents = 
+VAR currentweek = MAX(Weekly_System_Health[WeekofYear])
+RETURN
+SUMMARIZE(
+    FILTER(Weekly_System_Health, [Capacity_loss_health] = "Unhealthy" || [Cell_imbalance_health] = "Unhealthy" || [Cycle_count_health] = "Deteriorated" || [Temperature_health] = "Unhealthy" && Weekly_System_Health[WeekofYear] = currentweek), Weekly_System_Health[SystemID], Weekly_System_Health[Family_type],Weekly_System_Health[Month], Weekly_System_Health[Error_revealed_calc], Weekly_System_Health[Latest_week], Weekly_System_Health[Year_week], Weekly_System_Health[Software_version], Weekly_System_Health[Battery_type], Weekly_System_Health[Year_of_week])
+
+
+Distinctcount = VAR system = SELECTEDVALUE(AnomalyEvents[SystemID])
+RETURN
+CALCULATE(COUNTROWS(AnomalyEvents), ALLEXCEPT(AnomalyEvents, AnomalyEvents[Year_of_week]))
