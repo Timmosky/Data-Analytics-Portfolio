@@ -447,5 +447,15 @@ VAR TriggerQuarter =
 RETURN TriggerQuarter
 
 
+-----------------------------------------------------------------------
+WeeklyHealthSummarytable = ADDCOLUMNS(SUMMARIZE(FILTER( Weekly_System_Health, NOT ISBLANK( Weekly_System_Health[Cell_imbalance_health]) || NOT ISBLANK( Weekly_System_Health[Capacity_loss_health]) || NOT
+ISBLANK(Weekly_System_Health[Temperature_health]|| NOT ISBLANK(Weekly_System_Health[Cycle_count_health]))), Weekly_System_Health[SystemID], Weekly_System_Health[YearWeek], Weekly_System_Health[Year_week]), "WeekHealth", VAR ThisSystemWeek = FILTER(Weekly_System_Health, Weekly_System_Health[SystemID] = EARLIER([SystemID]) && Weekly_System_Health[YearWeek] = EARLIER([YearWeek]) && Weekly_System_Health[Year_week] = EARLIER([Year_week]))
+VAR HasUnhealthy = COUNTROWS(FILTER(ThisSystemWeek,Weekly_System_Health[Cell_imbalance_health] = "Unhealthy" || Weekly_System_Health[Capacity_loss_health] = "Unhealthy" || Weekly_System_Health[Temperature_health] = "Unhealthy" || Weekly_System_Health[Cycle_count_health] = "Deteriorated")) >0
+VAR Haswarning = COUNTROWS(FILTER(ThisSystemWeek, Weekly_System_Health[Cell_imbalance_health] = "Warning" || Weekly_System_Health[Capacity_loss_health] = "Warning" || Weekly_System_Health[Temperature_health] = "Warning"|| Weekly_System_Health[Cycle_count_health] = "Warning")) >0
+RETURN
+SWITCH(TRUE(), HasUnhealthy, "Unhealthy", Haswarning, "Warning", "Stable"))
 
 
+
+------------------------------
+Unhealthy_systems = CALCULATE([Total Systems (Weekly)], WeeklyHealthSummarytable[WeekHealth] = "Unhealthy")
