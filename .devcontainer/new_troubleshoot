@@ -46,3 +46,52 @@ TrailingAnomaly = var normalrate = [Normal_rate]
 VAR trailingupperlimit = [TrailingUpperLimit]
 RETURN
 IF(normalrate > trailingupperlimit,1,0)
+
+
+TrailingUpperLimit = 
+VAR SelectedMeanWeeks = SELECTEDVALUE( ALERTWINDOWSELECTOR[TrailingWindow], 8 )
+VAR SelectedStdWeeks  = SELECTEDVALUE( 'STDDEVIATION SELECTOR'[TrailingWindow], SelectedMeanWeeks )
+VAR Multiplier = SELECTEDVALUE( StdDevSelector[Multiplier], 2 )
+VAR MaxDate = CALCULATE(MAX(parts[Order Date]))
+VAR MeanStartDate = MaxDate - ( SelectedMeanWeeks * 7 ) + 1
+VAR StdStartDate = MaxDate - ( SelectedStdWeeks * 7 ) + 1
+
+/* Create a summary table of NR values for the mean window */
+VAR SummaryForMean =
+    CALCULATETABLE(
+        SUMMARIZE(
+            parts,
+            parts[Order Fiscal Week],
+            parts[Item Description],
+            parts[Ultimate_family_name],
+            "NR_Value", [NR_Measure]
+        ),
+        parts[Order Date] >= MeanStartDate,
+        parts[Order Date] <= MaxDate,
+        ALLEXCEPT(parts, parts[Item Description], parts[Ultimate_family_name])
+    )
+
+/* Create a summary table of NR values for the std window */
+VAR SummaryForStd =
+    CALCULATETABLE(
+        SUMMARIZE(
+            parts,
+            parts[Order Fiscal Week],
+            parts[Item Description],
+            parts[Ultimate_family_name],
+            "NR_Value", [NR_Measure]
+        ),
+        parts[Order Date] >= StdStartDate,
+        parts[Order Date] <= MaxDate,
+        ALLEXCEPT(parts, parts[Item Description], parts[Ultimate_family_name])
+    )
+
+/* Filter out blanks */
+VAR FilteredMean = FILTER(SummaryForMean, NOT ISBLANK([NR_Value]))
+VAR FilteredStd = FILTER(SummaryForStd, NOT ISBLANK([NR_Value]))
+
+VAR Mean = AVERAGEX(FilteredMean, [NR_Value])
+VAR StdDevv = STDEVX.P(FilteredStd, [NR_Value])
+
+RETURN
+Mean + ( Multiplier * StdDevv )
