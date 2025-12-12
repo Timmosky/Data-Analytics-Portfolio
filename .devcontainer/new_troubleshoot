@@ -182,18 +182,21 @@ RETURN
 IF(
     IsAnomaly,
     
-    /* Find the start of current streak (last non-anomaly week + 1) */
-    VAR StreakStart = 
-        VAR LastNonAnomalyWeek = 
-            CALCULATE(
-                MAX( parts[Order Fiscal Week] ),
-                parts[Item Description] = CurrentItem,
-                parts[Ultimate_family_name] = CurrentFamily,
-                parts[Order Fiscal Week] < CurrentWeek,
-                parts[Exceedance_Flag] = 0
-            )
-        RETURN
-        IF( ISBLANK(LastNonAnomalyWeek), 0, LastNonAnomalyWeek )
+    /* Find the last non-anomaly week before current week */
+    VAR LastNonAnomalyWeek = 
+        MAXX(
+            FILTER(
+                parts,
+                parts[Item Description] = CurrentItem
+                && parts[Ultimate_family_name] = CurrentFamily
+                && parts[Order Fiscal Week] < CurrentWeek
+                && parts[Exceedance_Flag] = 0
+            ),
+            parts[Order Fiscal Week]
+        )
+    
+    /* Set streak start (0 if no gap found) */
+    VAR StreakStart = IF( ISBLANK(LastNonAnomalyWeek), 0, LastNonAnomalyWeek )
     
     /* Count anomaly weeks from streak start to current week */
     VAR StreakLength = 
