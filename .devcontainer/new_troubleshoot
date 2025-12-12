@@ -1,1 +1,45 @@
+NR = DIVIDE([Weekly_qty_measure], parts[IB_fam],BLANK()) calculated column
+Normal_rate = AVERAGE(parts[NR]) - translated into a measure
 
+TrailingUpperLimit = 
+VAR SelectedMeanWeeks = SELECTEDVALUE( ALERTWINDOWSELECTOR[TrailingWindow], 8 ) /* Default mean window i set is 2 years */
+VAR SelectedStdWeeks  = SELECTEDVALUE( 'STDDEVIATION SELECTOR'[TrailingWindow], SelectedMeanWeeks )  // I am keeping this as a default fallback
+
+VAR Multiplier = SELECTEDVALUE( StdDevSelector[Multiplier], 2 )
+
+VAR MaxDate = CALCULATE(MAX(parts[Order Date]))
+
+/* mean window start (mean selector) */
+VAR MeanStartDate = MaxDate - ( SelectedMeanWeeks * 7 ) + 1
+
+/* std window start (std selector) */
+VAR StdStartDate = MaxDate - ( SelectedStdWeeks * 7 ) + 1
+
+/* filtered table for mean (keeps the ALLEXCEPT logic for Item Description) */
+VAR FilteredForMean =
+    FILTER(
+        ALLEXCEPT( Parts, Parts[Item Description], parts[Ultimate_family_name]), 
+        Parts[Order Date] >= MeanStartDate
+            && Parts[Order Date] <= MaxDate
+            && NOT ISBLANK(parts[Normal_rate])
+    )
+
+/* filtered table for std (same scope but different date window) */
+VAR FilteredForStd =
+    FILTER(
+        ALLEXCEPT( Parts, Parts[Item Description], parts[Ultimate_family_name]),
+        Parts[Order Date] >= StdStartDate
+            && Parts[Order Date] <= MaxDate
+            && NOT ISBLANK(parts[Normal_rate])
+    )
+
+VAR Mean = CALCULATE(AVERAGEX(FilteredForMean, parts[Normal_rate]))
+VAR StdDevv = CALCULATE(STDEVX.P(FilteredForStd, parts[Normal_rate]))
+
+RETURN
+Mean + ( Multiplier * StdDevv )
+
+TrailingAnomaly = var normalrate = [Normal_rate]
+VAR trailingupperlimit = [TrailingUpperLimit]
+RETURN
+IF(normalrate > trailingupperlimit,1,0)
