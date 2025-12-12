@@ -461,3 +461,68 @@ SWITCH(
     ExceedanceQuarterly >= 2, "Quarterly Anomaly (Out of Range)",
     "Normal"
 )
+
+----------------------------------------------------------------
+
+
+WeekIndex =
+RANKX(
+    FILTER(
+        parts,
+        parts[Item Description] = EARLIER(parts[Item Description]) &&
+        parts[Ultimate_family_name] = EARLIER(parts[Ultimate_family_name])
+    ),
+    parts[Order Fiscal Week],
+    ,
+    ASC,
+    DENSE
+)
+----------------------------------------------
+
+Exceedance_pp_Optimized :=
+VAR CurrItem   = SELECTEDVALUE(parts[Item Description])
+VAR CurrFamily = SELECTEDVALUE(parts[Ultimate_family_name])
+VAR CurrIndex  = MAX(parts[WeekIndex])
+VAR Threshold  = SELECTEDVALUE('Exceedance Period'[Exceedance Period], 1)
+
+VAR History =
+    FILTER(
+        ALL(parts),
+        parts[Item Description] = CurrItem &&
+        parts[Ultimate_family_name] = CurrFamily &&
+        parts[WeekIndex] <= CurrIndex
+    )
+
+VAR FlaggedOnly =
+    FILTER(
+        History,
+        parts[Exceedance_Flag] = 1
+    )
+
+VAR Streak =
+    COUNTROWS(
+        TOPN(
+            9999,
+            FlaggedOnly,
+            parts[WeekIndex],
+            DESC
+        )
+    )
+
+RETURN
+IF(Streak >= Threshold, Streak, BLANK())
+--------------------------------------------------------------------
+Anomaly_Events =
+FILTER(
+    ADDCOLUMNS(
+        SUMMARIZE(
+            parts,
+            parts[Item Description],
+            parts[Ultimate_family_name],
+            parts[Order Fiscal Week]
+        ),
+        "Exceedance", [Exceedance_pp_Optimized]
+    ),
+    [Exceedance] >= 2
+)
+
