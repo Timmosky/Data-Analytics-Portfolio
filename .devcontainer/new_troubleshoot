@@ -168,3 +168,67 @@ var streak = IF(ISBLANK(firstzerooffset), Maxlookback + 1 , firstzerooffset)
 
 RETURN
 IF(streak >= threshold, streak, BLANK())
+
+
+
+---------------------------------------------------------------------------------
+Exceedance_pp_Column = 
+VAR CurrentWeek = parts[Order Fiscal Week]
+VAR CurrentItem = parts[Item Description]
+VAR CurrentFamily = parts[Ultimate_family_name]
+VAR IsAnomaly = parts[Exceedance_Flag] = 1
+
+RETURN
+IF(
+    IsAnomaly,
+    
+    /* Find the start of current streak (last non-anomaly week + 1) */
+    VAR StreakStart = 
+        VAR LastNonAnomalyWeek = 
+            CALCULATE(
+                MAX( parts[Order Fiscal Week] ),
+                parts[Item Description] = CurrentItem,
+                parts[Ultimate_family_name] = CurrentFamily,
+                parts[Order Fiscal Week] < CurrentWeek,
+                parts[Exceedance_Flag] = 0
+            )
+        RETURN
+        IF( ISBLANK(LastNonAnomalyWeek), 0, LastNonAnomalyWeek )
+    
+    /* Count anomaly weeks from streak start to current week */
+    VAR StreakLength = 
+        COUNTROWS(
+            FILTER(
+                parts,
+                parts[Item Description] = CurrentItem
+                && parts[Ultimate_family_name] = CurrentFamily
+                && parts[Order Fiscal Week] > StreakStart
+                && parts[Order Fiscal Week] <= CurrentWeek
+                && parts[Exceedance_Flag] = 1
+            )
+        )
+    
+    RETURN StreakLength,
+    
+    BLANK()
+)
+
+
+---------------------------------------
+
+combinedanomaly = 
+VAR Exceedance8Week = MAX( parts[Exceedance_pp_Column] )  /* Column, not measure! */
+VAR ExceedanceQuarterly = MAX( parts[Exceedance_pp_YOY_Column] )  /* Column, not measure! */
+VAR CurrentQuarter = [Current_Quarter_Number]
+VAR TriggerQuarter = [First_8Week_Trigger_Quarter_Rolling]
+VAR Validquarter = [Is_Sustained_Anomaly_Valid]
+
+RETURN
+SWITCH(
+    TRUE(),
+    ExceedanceQuarterly >= 2 && Validquarter = 1, "Sustained Anomaly Detected",
+    Exceedance8Week >= 2, "Anomaly Detected",
+    ExceedanceQuarterly >= 2, "Quarterly Anomaly (Out of Range)",
+    MAX( parts[TrailingAnomaly] ) = 1 || MAX( parts[Quarterly_YoY_Anomaly] ) = 1, "Single Spike",
+    "Normal"
+)
