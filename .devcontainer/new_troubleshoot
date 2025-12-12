@@ -210,3 +210,17 @@ IF(
     Mean + ( Multiplier * StdDevv ),
     BLANK()
 )
+
+
+
+
+TrailingAnomaly = 
+VAR normalrate = [Normal_rate]
+VAR trailingupperlimit = [TrailingUpperLimit]
+VAR HasSufficientData = NOT ISBLANK(trailingupperlimit) && NOT ISBLANK(normalrate)
+RETURN
+IF(
+    HasSufficientData,
+    IF(normalrate > trailingupperlimit, 1, 0),
+    BLANK()
+)
