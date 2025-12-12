@@ -525,26 +525,41 @@ FILTER(
     ),
     [Exceedance] >= 2
 )
-
--------------------------------------------------------------------
-
+----------------------------
 Exceedance_Streak =
-IF(
-    parts[Exceedance_Flag] = 0,
-    0,
-    VAR PrevStreak =
-        CALCULATE(
-            MAX(parts[Exceedance_Streak]),
-            FILTER(
-                parts,
-                parts[Item Description] = EARLIER(parts[Item Description]) &&
-                parts[Ultimate_family_name] = EARLIER(parts[Ultimate_family_name]) &&
-                parts[WeekSeq] = EARLIER(parts[WeekSeq]) - 1
-            )
+VAR CurrItem   = parts[Item Description]
+VAR CurrFamily = parts[Ultimate_family_name]
+VAR CurrSeq    = parts[WeekSeq]
+
+-- Find the last week BEFORE this one where flag = 0
+VAR LastZeroSeq =
+    MAXX(
+        FILTER(
+            parts,
+            parts[Item Description] = CurrItem &&
+            parts[Ultimate_family_name] = CurrFamily &&
+            parts[WeekSeq] < CurrSeq &&
+            parts[Exceedance_Flag] = 0
+        ),
+        parts[WeekSeq]
+    )
+
+-- Count flagged rows since that reset point
+VAR Streak =
+    COUNTROWS(
+        FILTER(
+            parts,
+            parts[Item Description] = CurrItem &&
+            parts[Ultimate_family_name] = CurrFamily &&
+            parts[WeekSeq] > COALESCE(LastZeroSeq, 0) &&
+            parts[WeekSeq] <= CurrSeq &&
+            parts[Exceedance_Flag] = 1
         )
-    RETURN
-        PrevStreak + 1
-)
+    )
+
+RETURN
+IF(parts[Exceedance_Flag] = 1, Streak, 0)
+
 -----------------------------
 Exceedance_pp :=
 VAR Threshold = SELECTEDVALUE('Exceedance Period'[Exceedance Period], 1)
