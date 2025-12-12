@@ -113,3 +113,36 @@ VAR StdDevv = CALCULATE(STDEVX.P(FilteredForStd, parts[Normal_rate]))
 
 RETURN
 Mean + ( Multiplier * StdDevv )
+
+
+
+VAR Exceedance8Week = [Exceedance_pp]
+VAR ExceedanceQuarterly = [Exceedance_pp_YOY_]
+VAR CurrentQuarter = [Current_Quarter_Number]
+VAR TriggerQuarter = [First_8Week_Trigger_Quarter_Rolling]
+VAR QD = [QD]
+VAR Validquarter = [Is_Sustained_Anomaly_Valid]
+
+RETURN
+SWITCH(
+    TRUE(),
+    
+    /* PRIORITY 2: Quarterly ≥2 AND within valid range (0-2 quarters) → Sustained */
+    ExceedanceQuarterly >= 2 && Validquarter = 1 ,
+        "Sustained Anomaly Detected",
+    
+    /* PRIORITY 3: 8-week spike outside trigger quarter */
+    Exceedance8Week >= 2, 
+        "Anomaly Detected",
+    
+    /* PRIORITY 4: Quarterly ≥2 but OUTSIDE valid range (3+ quarters or no trigger) */
+    ExceedanceQuarterly >= 2, 
+        "Quarterly Anomaly (Out of Range)",
+    
+    /* PRIORITY 5: Individual spikes */
+    [TrailingAnomaly] = 1 || [Quarterly_YoY_Anomaly] = 1, 
+        "Single Spike",
+    
+    /* PRIORITY 6: Normal */
+    "Normal"
+)
