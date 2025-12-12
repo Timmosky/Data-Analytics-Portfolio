@@ -95,3 +95,71 @@ VAR StdDevv = STDEVX.P(FilteredStd, [NR_Value])
 
 RETURN
 Mean + ( Multiplier * StdDevv )
+--------------------------------------------------------------------------------------------
+
+
+TrailingUpperLimit = 
+VAR SelectedMeanWeeks = SELECTEDVALUE( ALERTWINDOWSELECTOR[TrailingWindow], 8 )
+VAR SelectedStdWeeks  = SELECTEDVALUE( 'STDDEVIATION SELECTOR'[TrailingWindow], SelectedMeanWeeks )
+VAR Multiplier = SELECTEDVALUE( StdDevSelector[Multiplier], 2 )
+VAR MaxDate = CALCULATE(MAX(parts[Order Date]))
+VAR MeanStartDate = MaxDate - ( SelectedMeanWeeks * 7 ) + 1
+VAR StdStartDate = MaxDate - ( SelectedStdWeeks * 7 ) + 1
+
+/* Get current Item and Family for context */
+VAR CurrentItem = SELECTEDVALUE(parts[Item Description])
+VAR CurrentFamily = SELECTEDVALUE(parts[Ultimate_family_name])
+
+/* Create summary table for Mean calculation */
+VAR SummaryForMean =
+    ADDCOLUMNS(
+        CALCULATETABLE(
+            SUMMARIZE(
+                parts,
+                parts[Order Fiscal Week],
+                parts[Order Date],
+                parts[Item Description],
+                parts[Ultimate_family_name]
+            ),
+            parts[Item Description] = CurrentItem,
+            parts[Ultimate_family_name] = CurrentFamily,
+            parts[Order Date] >= MeanStartDate,
+            parts[Order Date] <= MaxDate
+        ),
+        "NR_Value", [NR_Measure]
+    )
+
+/* Create summary table for StdDev calculation */
+VAR SummaryForStd =
+    ADDCOLUMNS(
+        CALCULATETABLE(
+            SUMMARIZE(
+                parts,
+                parts[Order Fiscal Week],
+                parts[Order Date],
+                parts[Item Description],
+                parts[Ultimate_family_name]
+            ),
+            parts[Item Description] = CurrentItem,
+            parts[Ultimate_family_name] = CurrentFamily,
+            parts[Order Date] >= StdStartDate,
+            parts[Order Date] <= MaxDate
+        ),
+        "NR_Value", [NR_Measure]
+    )
+
+/* Filter out blanks and calculate */
+VAR FilteredMean = FILTER(SummaryForMean, NOT ISBLANK([NR_Value]))
+VAR FilteredStd = FILTER(SummaryForStd, NOT ISBLANK([NR_Value]))
+
+VAR Mean = AVERAGEX(FilteredMean, [NR_Value])
+VAR StdDevv = STDEVX.P(FilteredStd, [NR_Value])
+
+VAR Result = 
+    IF(
+        NOT ISBLANK(Mean) && NOT ISBLANK(StdDevv),
+        Mean + ( Multiplier * StdDevv ),
+        BLANK()
+    )
+
+RETURN Result
