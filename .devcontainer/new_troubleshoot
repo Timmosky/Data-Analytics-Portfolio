@@ -163,3 +163,50 @@ VAR Result =
     )
 
 RETURN Result
+
+
+
+
+
+
+
+
+TrailingUpperLimit = 
+VAR SelectedMeanWeeks = SELECTEDVALUE( ALERTWINDOWSELECTOR[TrailingWindow], 8 )
+VAR SelectedStdWeeks  = SELECTEDVALUE( 'STDDEVIATION SELECTOR'[TrailingWindow], SelectedMeanWeeks )
+VAR Multiplier = SELECTEDVALUE( StdDevSelector[Multiplier], 2 )
+VAR MaxDate = CALCULATE(MAX(parts[Order Date]))
+VAR MeanStartDate = MaxDate - ( SelectedMeanWeeks * 7 ) + 1
+VAR StdStartDate = MaxDate - ( SelectedStdWeeks * 7 ) + 1
+
+/* Calculate Mean using CALCULATE with explicit filters */
+VAR Mean = 
+    CALCULATE(
+        [NR_Measure],
+        parts[Order Date] >= MeanStartDate,
+        parts[Order Date] <= MaxDate,
+        ALLEXCEPT(parts, parts[Item Description], parts[Ultimate_family_name])
+    )
+
+/* Calculate StdDev by getting all NR values in the window */
+VAR StdDevv = 
+    CALCULATE(
+        STDEVX.P(
+            SUMMARIZE(
+                parts,
+                parts[Order Fiscal Week],
+                "NR_Val", [NR_Measure]
+            ),
+            [NR_Val]
+        ),
+        parts[Order Date] >= StdStartDate,
+        parts[Order Date] <= MaxDate,
+        ALLEXCEPT(parts, parts[Item Description], parts[Ultimate_family_name])
+    )
+
+RETURN
+IF(
+    NOT ISBLANK(Mean) && NOT ISBLANK(StdDevv),
+    Mean + ( Multiplier * StdDevv ),
+    BLANK()
+)
