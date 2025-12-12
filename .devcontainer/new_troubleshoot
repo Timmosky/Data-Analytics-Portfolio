@@ -1,3 +1,6 @@
+
+CALCULATE(SUM(parts[Quantity Ordered]), ALLEXCEPT(parts, parts[Item Description], parts[Order Fiscal Week], parts[Ultimate_family_name]))
+
 NR = DIVIDE([Weekly_qty_measure], parts[IB_fam],BLANK()) calculated column
 Normal_rate = AVERAGE(parts[NR]) - translated into a measure
 
