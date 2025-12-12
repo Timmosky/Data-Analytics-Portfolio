@@ -217,13 +217,13 @@ IF(
 )
 
 
+
 ---------------------------------------
 
 combinedanomaly = 
-VAR Exceedance8Week = MAX( parts[Exceedance_pp_Column] )  /* Column, not measure! */
-VAR ExceedanceQuarterly = MAX( parts[Exceedance_pp_YOY_Column] )  /* Column, not measure! */
+VAR Exceedance8Week = MAX( parts[Exceedance_pp_Column] )
+VAR ExceedanceQuarterly = MAX( parts[Exceedance_pp_YOY_Column] )
 VAR CurrentQuarter = [Current_Quarter_Number]
-VAR TriggerQuarter = [First_8Week_Trigger_Quarter_Rolling]
 VAR Validquarter = [Is_Sustained_Anomaly_Valid]
 
 RETURN
