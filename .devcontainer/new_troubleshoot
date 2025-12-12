@@ -1,208 +1,69 @@
-
-CALCULATE(SUM(parts[Quantity Ordered]), ALLEXCEPT(parts, parts[Item Description], parts[Order Fiscal Week], parts[Ultimate_family_name]))
-
-NR = DIVIDE([Weekly_qty_measure], parts[IB_fam],BLANK()) calculated column
-Normal_rate = AVERAGE(parts[NR]) - translated into a measure
-
-TrailingUpperLimit = 
-VAR SelectedMeanWeeks = SELECTEDVALUE( ALERTWINDOWSELECTOR[TrailingWindow], 8 ) /* Default mean window i set is 2 years */
-VAR SelectedStdWeeks  = SELECTEDVALUE( 'STDDEVIATION SELECTOR'[TrailingWindow], SelectedMeanWeeks )  // I am keeping this as a default fallback
-
-VAR Multiplier = SELECTEDVALUE( StdDevSelector[Multiplier], 2 )
-
-VAR MaxDate = CALCULATE(MAX(parts[Order Date]))
-
-/* mean window start (mean selector) */
-VAR MeanStartDate = MaxDate - ( SelectedMeanWeeks * 7 ) + 1
-
-/* std window start (std selector) */
-VAR StdStartDate = MaxDate - ( SelectedStdWeeks * 7 ) + 1
-
-/* filtered table for mean (keeps the ALLEXCEPT logic for Item Description) */
-VAR FilteredForMean =
-    FILTER(
-        ALLEXCEPT( Parts, Parts[Item Description], parts[Ultimate_family_name]), 
-        Parts[Order Date] >= MeanStartDate
-            && Parts[Order Date] <= MaxDate
-            && NOT ISBLANK(parts[Normal_rate])
-    )
-
-/* filtered table for std (same scope but different date window) */
-VAR FilteredForStd =
-    FILTER(
-        ALLEXCEPT( Parts, Parts[Item Description], parts[Ultimate_family_name]),
-        Parts[Order Date] >= StdStartDate
-            && Parts[Order Date] <= MaxDate
-            && NOT ISBLANK(parts[Normal_rate])
-    )
-
-VAR Mean = CALCULATE(AVERAGEX(FilteredForMean, parts[Normal_rate]))
-VAR StdDevv = CALCULATE(STDEVX.P(FilteredForStd, parts[Normal_rate]))
-
-RETURN
-Mean + ( Multiplier * StdDevv )
-
-TrailingAnomaly = var normalrate = [Normal_rate]
-VAR trailingupperlimit = [TrailingUpperLimit]
-RETURN
-IF(normalrate > trailingupperlimit,1,0)
-
-
 TrailingUpperLimit = 
 VAR SelectedMeanWeeks = SELECTEDVALUE( ALERTWINDOWSELECTOR[TrailingWindow], 8 )
 VAR SelectedStdWeeks  = SELECTEDVALUE( 'STDDEVIATION SELECTOR'[TrailingWindow], SelectedMeanWeeks )
 VAR Multiplier = SELECTEDVALUE( StdDevSelector[Multiplier], 2 )
-VAR MaxDate = CALCULATE(MAX(parts[Order Date]))
-VAR MeanStartDate = MaxDate - ( SelectedMeanWeeks * 7 ) + 1
-VAR StdStartDate = MaxDate - ( SelectedStdWeeks * 7 ) + 1
 
-/* Create a summary table of NR values for the mean window */
-VAR SummaryForMean =
-    CALCULATETABLE(
-        SUMMARIZE(
-            parts,
-            parts[Order Fiscal Week],
-            parts[Item Description],
-            parts[Ultimate_family_name],
-            "NR_Value", [NR_Measure]
-        ),
-        parts[Order Date] >= MeanStartDate,
-        parts[Order Date] <= MaxDate,
+/* Current week's date - find the max date in current row context */
+VAR CurrentWeek = SELECTEDVALUE(parts[Order Fiscal Week])
+VAR CurrentMaxDate = 
+    CALCULATE(
+        MAX(parts[Order Date]),
+        parts[Order Fiscal Week] = CurrentWeek,
         ALLEXCEPT(parts, parts[Item Description], parts[Ultimate_family_name])
     )
 
-/* Create a summary table of NR values for the std window */
-VAR SummaryForStd =
-    CALCULATETABLE(
-        SUMMARIZE(
-            parts,
-            parts[Order Fiscal Week],
-            parts[Item Description],
-            parts[Ultimate_family_name],
-            "NR_Value", [NR_Measure]
-        ),
-        parts[Order Date] >= StdStartDate,
-        parts[Order Date] <= MaxDate,
-        ALLEXCEPT(parts, parts[Item Description], parts[Ultimate_family_name])
-    )
+/* Define window BEFORE current week */
+VAR MeanStartDate = CurrentMaxDate - ( SelectedMeanWeeks * 7 )
+VAR MeanEndDate = CurrentMaxDate - 1  /* Exclude current week */
+VAR StdStartDate = CurrentMaxDate - ( SelectedStdWeeks * 7 )
+VAR StdEndDate = CurrentMaxDate - 1
 
-/* Filter out blanks */
-VAR FilteredMean = FILTER(SummaryForMean, NOT ISBLANK([NR_Value]))
-VAR FilteredStd = FILTER(SummaryForStd, NOT ISBLANK([NR_Value]))
-
-VAR Mean = AVERAGEX(FilteredMean, [NR_Value])
-VAR StdDevv = STDEVX.P(FilteredStd, [NR_Value])
-
-RETURN
-Mean + ( Multiplier * StdDevv )
---------------------------------------------------------------------------------------------
-
-
-TrailingUpperLimit = 
-VAR SelectedMeanWeeks = SELECTEDVALUE( ALERTWINDOWSELECTOR[TrailingWindow], 8 )
-VAR SelectedStdWeeks  = SELECTEDVALUE( 'STDDEVIATION SELECTOR'[TrailingWindow], SelectedMeanWeeks )
-VAR Multiplier = SELECTEDVALUE( StdDevSelector[Multiplier], 2 )
-VAR MaxDate = CALCULATE(MAX(parts[Order Date]))
-VAR MeanStartDate = MaxDate - ( SelectedMeanWeeks * 7 ) + 1
-VAR StdStartDate = MaxDate - ( SelectedStdWeeks * 7 ) + 1
-
-/* Get current Item and Family for context */
 VAR CurrentItem = SELECTEDVALUE(parts[Item Description])
 VAR CurrentFamily = SELECTEDVALUE(parts[Ultimate_family_name])
 
-/* Create summary table for Mean calculation */
+/* Summary for Mean - excludes current week */
 VAR SummaryForMean =
     ADDCOLUMNS(
         CALCULATETABLE(
             SUMMARIZE(
                 parts,
                 parts[Order Fiscal Week],
-                parts[Order Date],
                 parts[Item Description],
                 parts[Ultimate_family_name]
             ),
             parts[Item Description] = CurrentItem,
             parts[Ultimate_family_name] = CurrentFamily,
             parts[Order Date] >= MeanStartDate,
-            parts[Order Date] <= MaxDate
+            parts[Order Date] <= MeanEndDate,
+            parts[Order Fiscal Week] <> CurrentWeek  /* Extra safety */
         ),
         "NR_Value", [NR_Measure]
     )
 
-/* Create summary table for StdDev calculation */
+/* Summary for StdDev - excludes current week */
 VAR SummaryForStd =
     ADDCOLUMNS(
         CALCULATETABLE(
             SUMMARIZE(
                 parts,
                 parts[Order Fiscal Week],
-                parts[Order Date],
                 parts[Item Description],
                 parts[Ultimate_family_name]
             ),
             parts[Item Description] = CurrentItem,
             parts[Ultimate_family_name] = CurrentFamily,
             parts[Order Date] >= StdStartDate,
-            parts[Order Date] <= MaxDate
+            parts[Order Date] <= StdEndDate,
+            parts[Order Fiscal Week] <> CurrentWeek  /* Extra safety */
         ),
         "NR_Value", [NR_Measure]
     )
 
-/* Filter out blanks and calculate */
 VAR FilteredMean = FILTER(SummaryForMean, NOT ISBLANK([NR_Value]))
 VAR FilteredStd = FILTER(SummaryForStd, NOT ISBLANK([NR_Value]))
 
 VAR Mean = AVERAGEX(FilteredMean, [NR_Value])
 VAR StdDevv = STDEVX.P(FilteredStd, [NR_Value])
-
-VAR Result = 
-    IF(
-        NOT ISBLANK(Mean) && NOT ISBLANK(StdDevv),
-        Mean + ( Multiplier * StdDevv ),
-        BLANK()
-    )
-
-RETURN Result
-
-
-
-
-
-
-
-
-TrailingUpperLimit = 
-VAR SelectedMeanWeeks = SELECTEDVALUE( ALERTWINDOWSELECTOR[TrailingWindow], 8 )
-VAR SelectedStdWeeks  = SELECTEDVALUE( 'STDDEVIATION SELECTOR'[TrailingWindow], SelectedMeanWeeks )
-VAR Multiplier = SELECTEDVALUE( StdDevSelector[Multiplier], 2 )
-VAR MaxDate = CALCULATE(MAX(parts[Order Date]))
-VAR MeanStartDate = MaxDate - ( SelectedMeanWeeks * 7 ) + 1
-VAR StdStartDate = MaxDate - ( SelectedStdWeeks * 7 ) + 1
-
-/* Calculate Mean using CALCULATE with explicit filters */
-VAR Mean = 
-    CALCULATE(
-        [NR_Measure],
-        parts[Order Date] >= MeanStartDate,
-        parts[Order Date] <= MaxDate,
-        ALLEXCEPT(parts, parts[Item Description], parts[Ultimate_family_name])
-    )
-
-/* Calculate StdDev by getting all NR values in the window */
-VAR StdDevv = 
-    CALCULATE(
-        STDEVX.P(
-            SUMMARIZE(
-                parts,
-                parts[Order Fiscal Week],
-                "NR_Val", [NR_Measure]
-            ),
-            [NR_Val]
-        ),
-        parts[Order Date] >= StdStartDate,
-        parts[Order Date] <= MaxDate,
-        ALLEXCEPT(parts, parts[Item Description], parts[Ultimate_family_name])
-    )
 
 RETURN
 IF(
@@ -210,156 +71,3 @@ IF(
     Mean + ( Multiplier * StdDevv ),
     BLANK()
 )
-
-
-
-
-TrailingAnomaly = 
-VAR normalrate = [Normal_rate]
-VAR trailingupperlimit = [TrailingUpperLimit]
-VAR HasSufficientData = NOT ISBLANK(trailingupperlimit) && NOT ISBLANK(normalrate)
-RETURN
-IF(
-    HasSufficientData,
-    IF(normalrate > trailingupperlimit, 1, 0),
-    BLANK()
-)
-
-
-----------------control limits--------------------------
-
-TrailingUpperLimit = 
-VAR SelectedMeanWeeks = SELECTEDVALUE( ALERTWINDOWSELECTOR[TrailingWindow], 8 )
-VAR SelectedStdWeeks  = SELECTEDVALUE( 'STDDEVIATION SELECTOR'[TrailingWindow], SelectedMeanWeeks )
-VAR Multiplier = SELECTEDVALUE( StdDevSelector[Multiplier], 2 )
-
-/* Get the CURRENT row's date, not the max date in the entire dataset */
-VAR CurrentDate = SELECTEDVALUE(parts[Order Date])
-
-/* Calculate trailing window relative to CURRENT date */
-VAR MeanStartDate = CurrentDate - ( SelectedMeanWeeks * 7 )
-VAR StdStartDate = CurrentDate - ( SelectedStdWeeks * 7 )
-
-/* Key change: Filter for dates BEFORE current date only */
-VAR CurrentItem = SELECTEDVALUE(parts[Item Description])
-VAR CurrentFamily = SELECTEDVALUE(parts[Ultimate_family_name])
-
-VAR SummaryForMean =
-    ADDCOLUMNS(
-        CALCULATETABLE(
-            SUMMARIZE(
-                parts,
-                parts[Order Fiscal Week],
-                parts[Order Date],
-                parts[Item Description],
-                parts[Ultimate_family_name]
-            ),
-            parts[Item Description] = CurrentItem,
-            parts[Ultimate_family_name] = CurrentFamily,
-            parts[Order Date] >= MeanStartDate,
-            parts[Order Date] < CurrentDate  /* Exclude current date */
-        ),
-        "NR_Value", [NR_Measure]
-    )
-
-VAR SummaryForStd =
-    ADDCOLUMNS(
-        CALCULATETABLE(
-            SUMMARIZE(
-                parts,
-                parts[Order Fiscal Week],
-                parts[Order Date],
-                parts[Item Description],
-                parts[Ultimate_family_name]
-            ),
-            parts[Item Description] = CurrentItem,
-            parts[Ultimate_family_name] = CurrentFamily,
-            parts[Order Date] >= StdStartDate,
-            parts[Order Date] < CurrentDate  /* Exclude current date */
-        ),
-        "NR_Value", [NR_Measure]
-    )
-
-VAR FilteredMean = FILTER(SummaryForMean, NOT ISBLANK([NR_Value]))
-VAR FilteredStd = FILTER(SummaryForStd, NOT ISBLANK([NR_Value]))
-
-VAR Mean = AVERAGEX(FilteredMean, [NR_Value])
-VAR StdDevv = STDEVX.P(FilteredStd, [NR_Value])
-
-VAR Result = 
-    IF(
-        NOT ISBLANK(Mean) && NOT ISBLANK(StdDevv),
-        Mean + ( Multiplier * StdDevv ),
-        BLANK()
-    )
-
-RETURN Result
-
-
-TrailingUpperLimit = 
-VAR SelectedMeanWeeks = SELECTEDVALUE( ALERTWINDOWSELECTOR[TrailingWindow], 8 )
-VAR SelectedStdWeeks  = SELECTEDVALUE( 'STDDEVIATION SELECTOR'[TrailingWindow], SelectedMeanWeeks )
-VAR Multiplier = SELECTEDVALUE( StdDevSelector[Multiplier], 2 )
-
-/* Get the current fiscal week's max date */
-VAR CurrentDate = MAX(parts[Order Date])
-
-/* Calculate trailing window ENDING just before current week */
-VAR MeanStartDate = CurrentDate - ( SelectedMeanWeeks * 7 )
-VAR MeanEndDate = CurrentDate - 1  /* End 1 day before current week */
-VAR StdStartDate = CurrentDate - ( SelectedStdWeeks * 7 )
-VAR StdEndDate = CurrentDate - 1
-
-VAR CurrentItem = SELECTEDVALUE(parts[Item Description])
-VAR CurrentFamily = SELECTEDVALUE(parts[Ultimate_family_name])
-
-VAR SummaryForMean =
-    ADDCOLUMNS(
-        CALCULATETABLE(
-            SUMMARIZE(
-                parts,
-                parts[Order Fiscal Week],
-                parts[Order Date],
-                parts[Item Description],
-                parts[Ultimate_family_name]
-            ),
-            parts[Item Description] = CurrentItem,
-            parts[Ultimate_family_name] = CurrentFamily,
-            parts[Order Date] >= MeanStartDate,
-            parts[Order Date] <= MeanEndDate
-        ),
-        "NR_Value", [NR_Measure]
-    )
-
-VAR SummaryForStd =
-    ADDCOLUMNS(
-        CALCULATETABLE(
-            SUMMARIZE(
-                parts,
-                parts[Order Fiscal Week],
-                parts[Order Date],
-                parts[Item Description],
-                parts[Ultimate_family_name]
-            ),
-            parts[Item Description] = CurrentItem,
-            parts[Ultimate_family_name] = CurrentFamily,
-            parts[Order Date] >= StdStartDate,
-            parts[Order Date] <= StdEndDate
-        ),
-        "NR_Value", [NR_Measure]
-    )
-
-VAR FilteredMean = FILTER(SummaryForMean, NOT ISBLANK([NR_Value]))
-VAR FilteredStd = FILTER(SummaryForStd, NOT ISBLANK([NR_Value]))
-
-VAR Mean = AVERAGEX(FilteredMean, [NR_Value])
-VAR StdDevv = STDEVX.P(FilteredStd, [NR_Value])
-
-VAR Result = 
-    IF(
-        NOT ISBLANK(Mean) && NOT ISBLANK(StdDevv),
-        Mean + ( Multiplier * StdDevv ),
-        BLANK()
-    )
-
-RETURN Result
