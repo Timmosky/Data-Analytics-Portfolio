@@ -262,10 +262,54 @@ SWITCH(
     "Normal"
 )
 
+---------------------------debug
+Debug_Sustained_Logic = 
+VAR CurrentQuarter = [Current_Quarter_Number]
+VAR TriggerQuarter = [First_8Week_Trigger_Quarter_Rolling]
+VAR Had8WeekTrigger = NOT ISBLANK(TriggerQuarter)
+VAR QuarterDistance = CurrentQuarter - TriggerQuarter
+VAR IsWithinRange = QuarterDistance >= 0 && QuarterDistance <= 2
+VAR IsValid = [Is_Sustained_Anomaly_Valid]
 
+RETURN
+"CurQ: Q" & CurrentQuarter &
+" | TrigQ: " & IF(ISBLANK(TriggerQuarter), "None", "Q" & TriggerQuarter) &
+" | Dist: " & IF(ISBLANK(TriggerQuarter), "N/A", QuarterDistance) &
+" | Valid: " & IsValid
 
-------------------------------------------------------------
+------------------------------------------------------------8week
+First_8Week_Trigger_Quarter_Rolling = 
+VAR CurrentItem = MAX(parts_WeekLevel[Item Description])
+VAR CurrentFamily = MAX(parts_WeekLevel[Ultimate_family_name])  /* ADD THIS */
+VAR CurrentYear = [Current_Year]
+VAR CurrentFiscalWeek = MAX(parts_WeekLevel[Order Fiscal Week])
 
+/* Find most recent week with Exceedance_8Week >= 2 up to current week */
+VAR MostRecentTriggerWeek = 
+    CALCULATE(
+        MAX(parts_WeekLevel[Order Fiscal Week]),
+        parts_WeekLevel[Item Description] = CurrentItem,
+        parts_WeekLevel[Ultimate_family_name] = CurrentFamily,  /* ADD THIS */
+        INT(parts_WeekLevel[Order Fiscal Week] / 100) = CurrentYear,
+        parts_WeekLevel[Order Fiscal Week] <= CurrentFiscalWeek,
+        parts_WeekLevel[Exceedance_8Week] >= 2
+    )
+
+/* Convert week to quarter */
+VAR TriggerWeekNum = MOD(MostRecentTriggerWeek, 100)
+
+VAR TriggerQuarter = 
+    SWITCH(
+        TRUE(),
+        TriggerWeekNum >= 1 && TriggerWeekNum <= 13, 1,
+        TriggerWeekNum >= 14 && TriggerWeekNum <= 26, 2,
+        TriggerWeekNum >= 27 && TriggerWeekNum <= 39, 3,
+        TriggerWeekNum >= 40 && TriggerWeekNum <= 53, 4,
+        BLANK()
+    )
+
+RETURN TriggerQuarter
+--------------------------
 Combined_Anomaly_Category_Fixed = 
 VAR Exceedance8Week = MAX(parts_WeekLevel[Exceedance_8Week])
 VAR ExceedanceQuarterly = MAX(parts_WeekLevel[Exceedance_Quarterly])
