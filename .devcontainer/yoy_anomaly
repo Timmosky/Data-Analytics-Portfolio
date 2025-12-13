@@ -1,1 +1,263 @@
+Complete YoY Quarterly Anomaly Detection
+Add these calculated columns to parts_WeekLevel table in this order:
 
+Column 5: Quarterly_YoY_UpperLimit
+Type: Calculated Column
+Purpose: Upper threshold based on prior year same quarter
+daxQuarterly_YoY_UpperLimit = 
+VAR Multiplier = 1.5
+
+VAR CurrentWeek = parts_WeekLevel[Order Fiscal Week]
+VAR CurrentItem = parts_WeekLevel[Item Description]
+VAR CurrentFamily = parts_WeekLevel[Ultimate_family_name]
+VAR CurrentYear = INT(CurrentWeek / 100)
+VAR CurrentWeekNum = MOD(CurrentWeek, 100)
+
+/* Determine current quarter */
+VAR CurrentQuarter = 
+    SWITCH(
+        TRUE(),
+        CurrentWeekNum >= 1 && CurrentWeekNum <= 13, 1,
+        CurrentWeekNum >= 14 && CurrentWeekNum <= 26, 2,
+        CurrentWeekNum >= 27 && CurrentWeekNum <= 39, 3,
+        CurrentWeekNum >= 40 && CurrentWeekNum <= 53, 4,
+        BLANK()
+    )
+
+/* Prior year same quarter range */
+VAR PriorYear = CurrentYear - 1
+VAR QuarterStart = (CurrentQuarter - 1) * 13 + 1
+VAR QuarterEnd = CurrentQuarter * 13
+
+/* Get prior year same quarter data */
+VAR PriorYearData = 
+    FILTER(
+        parts_WeekLevel,
+        parts_WeekLevel[Item Description] = CurrentItem
+        && parts_WeekLevel[Ultimate_family_name] = CurrentFamily
+        && INT(parts_WeekLevel[Order Fiscal Week] / 100) = PriorYear
+        && MOD(parts_WeekLevel[Order Fiscal Week], 100) >= QuarterStart
+        && MOD(parts_WeekLevel[Order Fiscal Week], 100) <= QuarterEnd
+        && NOT ISBLANK(parts_WeekLevel[Normal_Rate])
+    )
+
+/* Calculate statistics */
+VAR Mean = AVERAGEX(PriorYearData, parts_WeekLevel[Normal_Rate])
+VAR StdDev = STDEVX.S(PriorYearData, parts_WeekLevel[Normal_Rate])
+
+/* Handle edge cases */
+VAR SafeStdDev = 
+    IF(
+        ISBLANK(StdDev) || StdDev = 0,
+        Mean * 0.3,
+        StdDev
+    )
+
+/* Calculate upper limit */
+RETURN
+IF(
+    NOT ISBLANK(Mean),
+    Mean + (Multiplier * SafeStdDev),
+    BLANK()
+)
+
+Column 6: Quarterly_YoY_Anomaly
+Type: Calculated Column
+Purpose: Flag if current week exceeds YoY quarterly threshold
+daxQuarterly_YoY_Anomaly = 
+VAR CurrentRate = parts_WeekLevel[Normal_Rate]
+VAR UpperLimit = parts_WeekLevel[Quarterly_YoY_UpperLimit]
+
+RETURN
+IF(
+    NOT ISBLANK(UpperLimit) && CurrentRate > UpperLimit,
+    1,
+    0
+)
+
+Column 7: Streak_ID_Quarterly
+Type: Calculated Column
+Purpose: Identify streak groups for quarterly anomalies
+daxStreak_ID_Quarterly = 
+VAR CurrentWeek = parts_WeekLevel[Order Fiscal Week]
+VAR CurrentItem = parts_WeekLevel[Item Description]
+VAR CurrentFamily = parts_WeekLevel[Ultimate_family_name]
+VAR CurrentIsAnomaly = parts_WeekLevel[Quarterly_YoY_Anomaly]
+
+RETURN
+IF(
+    CurrentIsAnomaly = 1,
+    
+    /* Find most recent non-anomaly week OR non-consecutive week */
+    VAR BreakWeek = 
+        MAXX(
+            FILTER(
+                parts_WeekLevel,
+                VAR CheckWeek = parts_WeekLevel[Order Fiscal Week]
+                VAR CheckAnomaly = parts_WeekLevel[Quarterly_YoY_Anomaly]
+                
+                /* Get the next week after this one */
+                VAR NextWeek = 
+                    MINX(
+                        FILTER(
+                            parts_WeekLevel,
+                            parts_WeekLevel[Item Description] = CurrentItem
+                            && parts_WeekLevel[Ultimate_family_name] = CurrentFamily
+                            && parts_WeekLevel[Order Fiscal Week] > CheckWeek
+                        ),
+                        parts_WeekLevel[Order Fiscal Week]
+                    )
+                
+                /* This is a break if: it's before current week AND (it's not anomaly OR next week is not consecutive) */
+                RETURN
+                    parts_WeekLevel[Item Description] = CurrentItem
+                    && parts_WeekLevel[Ultimate_family_name] = CurrentFamily
+                    && CheckWeek < CurrentWeek
+                    && (
+                        CheckAnomaly = 0  /* Non-anomaly week */
+                        || (NOT ISBLANK(NextWeek) && NextWeek - CheckWeek > 1)  /* Gap in weeks */
+                    )
+            ),
+            parts_WeekLevel[Order Fiscal Week]
+        )
+    
+    /* Streak ID = most recent break week (or 0 if none) */
+    RETURN COALESCE(BreakWeek, 0),
+    
+    BLANK()
+)
+
+Column 8: Exceedance_Quarterly
+Type: Calculated Column
+Purpose: Count consecutive weeks above YoY quarterly threshold
+daxExceedance_Quarterly = 
+VAR CurrentWeek = parts_WeekLevel[Order Fiscal Week]
+VAR CurrentItem = parts_WeekLevel[Item Description]
+VAR CurrentFamily = parts_WeekLevel[Ultimate_family_name]
+VAR CurrentStreakID = parts_WeekLevel[Streak_ID_Quarterly]
+VAR Threshold = 1
+
+RETURN
+IF(
+    NOT ISBLANK(CurrentStreakID),
+    
+    /* Count anomaly weeks in same streak up to current week */
+    VAR Position = 
+        COUNTROWS(
+            FILTER(
+                parts_WeekLevel,
+                parts_WeekLevel[Item Description] = CurrentItem
+                && parts_WeekLevel[Ultimate_family_name] = CurrentFamily
+                && parts_WeekLevel[Streak_ID_Quarterly] = CurrentStreakID
+                && parts_WeekLevel[Order Fiscal Week] <= CurrentWeek
+            )
+        )
+    
+    RETURN IF(Position >= Threshold, Position, BLANK()),
+    
+    BLANK()
+)
+
+Sustained Anomaly Logic (Measures)
+Now create these measures on the parts_WeekLevel table:
+
+Measure 1: Current_Quarter_Number
+Type: Measure
+daxCurrent_Quarter_Number = 
+VAR CurrentWeek = MAX(parts_WeekLevel[Order Fiscal Week])
+VAR WeekNum = MOD(CurrentWeek, 100)
+
+RETURN
+SWITCH(
+    TRUE(),
+    WeekNum >= 1 && WeekNum <= 13, 1,
+    WeekNum >= 14 && WeekNum <= 26, 2,
+    WeekNum >= 27 && WeekNum <= 39, 3,
+    WeekNum >= 40 && WeekNum <= 53, 4,
+    BLANK()
+)
+
+Measure 2: Current_Year
+Type: Measure
+daxCurrent_Year = 
+VAR CurrentWeek = MAX(parts_WeekLevel[Order Fiscal Week])
+RETURN INT(CurrentWeek / 100)
+
+Measure 3: First_8Week_Trigger_Quarter_Rolling
+Type: Measure
+Purpose: Find most recent quarter with 8-week trigger
+daxFirst_8Week_Trigger_Quarter_Rolling = 
+VAR CurrentItem = MAX(parts_WeekLevel[Item Description])
+VAR CurrentYear = [Current_Year]
+VAR CurrentFiscalWeek = MAX(parts_WeekLevel[Order Fiscal Week])
+
+/* Find most recent week with Exceedance_8Week >= 2 */
+VAR MostRecentTriggerWeek = 
+    CALCULATE(
+        MAX(parts_WeekLevel[Order Fiscal Week]),
+        parts_WeekLevel[Item Description] = CurrentItem,
+        INT(parts_WeekLevel[Order Fiscal Week] / 100) = CurrentYear,
+        parts_WeekLevel[Order Fiscal Week] <= CurrentFiscalWeek,
+        parts_WeekLevel[Exceedance_8Week] >= 2
+    )
+
+/* Convert week to quarter */
+VAR TriggerWeekNum = MOD(MostRecentTriggerWeek, 100)
+
+VAR TriggerQuarter = 
+    SWITCH(
+        TRUE(),
+        TriggerWeekNum >= 1 && TriggerWeekNum <= 13, 1,
+        TriggerWeekNum >= 14 && TriggerWeekNum <= 26, 2,
+        TriggerWeekNum >= 27 && TriggerWeekNum <= 39, 3,
+        TriggerWeekNum >= 40 && TriggerWeekNum <= 53, 4,
+        BLANK()
+    )
+
+RETURN TriggerQuarter
+
+Measure 4: Is_Sustained_Anomaly_Valid
+Type: Measure
+Purpose: Check if within 0-2 quarters of most recent trigger
+daxIs_Sustained_Anomaly_Valid = 
+VAR CurrentQuarter = [Current_Quarter_Number]
+VAR TriggerQuarter = [First_8Week_Trigger_Quarter_Rolling]
+
+VAR Had8WeekTrigger = NOT ISBLANK(TriggerQuarter)
+VAR QuarterDistance = CurrentQuarter - TriggerQuarter
+VAR IsWithinRange = QuarterDistance >= 0 && QuarterDistance <= 2
+
+RETURN
+IF(Had8WeekTrigger && IsWithinRange, 1, 0)
+
+Measure 5: Combined_Anomaly_Category
+Type: Measure
+Purpose: Final categorization
+daxCombined_Anomaly_Category = 
+VAR Exceedance8Week = MAX(parts_WeekLevel[Exceedance_8Week])
+VAR ExceedanceQuarterly = MAX(parts_WeekLevel[Exceedance_Quarterly])
+VAR IsValidSustained = [Is_Sustained_Anomaly_Valid]
+
+RETURN
+SWITCH(
+    TRUE(),
+    
+    /* Sustained: Quarterly consecutive within valid range */
+    ExceedanceQuarterly >= 2 && IsValidSustained = 1,
+        "Sustained Anomaly Detected",
+    
+    /* Short-term: 8-week consecutive */
+    Exceedance8Week >= 2,
+        "Anomaly Detected",
+    
+    /* Out of range: Quarterly consecutive but too far from trigger */
+    ExceedanceQuarterly >= 2,
+        "Quarterly Anomaly (Out of Range)",
+    
+    /* Single spike: Individual anomaly, not consecutive */
+    MAX(parts_WeekLevel[TrailingAnomaly]) = 1 || MAX(parts_WeekLevel[Quarterly_YoY_Anomaly]) = 1,
+        "Single Spike",
+    
+    /* Normal */
+    "Normal"
+)
