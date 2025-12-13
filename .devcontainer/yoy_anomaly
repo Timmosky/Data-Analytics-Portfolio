@@ -1,3 +1,61 @@
+First_8Week_Trigger_Quarter_Rolling = 
+VAR CurrentItem = MAX(parts_WeekLevel[Item Description])
+VAR CurrentFamily = MAX(parts_WeekLevel[Ultimate_family_name])
+VAR CurrentYear = [Current_Year]
+VAR CurrentFiscalWeek = MAX(parts_WeekLevel[Order Fiscal Week])
+
+/* Find most recent week with Exceedance_8Week >= 2 */
+VAR MostRecentTriggerWeek = 
+    CALCULATE(
+        MAX(parts_WeekLevel[Order Fiscal Week]),
+        parts_WeekLevel[Item Description] = CurrentItem,
+        parts_WeekLevel[Ultimate_family_name] = CurrentFamily,
+        INT(parts_WeekLevel[Order Fiscal Week] / 100) = CurrentYear,
+        parts_WeekLevel[Order Fiscal Week] <= CurrentFiscalWeek,
+        parts_WeekLevel[Exceedance_8Week] >= 2,
+        ALLSELECTED(parts_WeekLevel)  /* Ignore other filters */
+    )
+
+/* Convert week to quarter */
+VAR TriggerWeekNum = MOD(MostRecentTriggerWeek, 100)
+
+VAR TriggerQuarter = 
+    SWITCH(
+        TRUE(),
+        TriggerWeekNum >= 1 && TriggerWeekNum <= 13, 1,
+        TriggerWeekNum >= 14 && TriggerWeekNum <= 26, 2,
+        TriggerWeekNum >= 27 && TriggerWeekNum <= 39, 3,
+        TriggerWeekNum >= 40 && TriggerWeekNum <= 53, 4,
+        BLANK()
+    )
+
+RETURN TriggerQuarter
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--------------------------
 Complete YoY Quarterly Anomaly Detection
 Add these calculated columns to parts_WeekLevel table in this order:
 
