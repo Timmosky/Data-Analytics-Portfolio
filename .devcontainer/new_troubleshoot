@@ -126,10 +126,22 @@ IF(
 )
 
 
-system_count = VAR part_famly = SELECTEDVALUE(parts[Ultimate_family_name])
-VAR  part_year = SELECTEDVALUE(parts[Order Year])
-VAR exp_pro = SELECTEDVALUE('Export'[New_PSI_description])
-VAR exp_year= SELECTEDVALUE('Export'[Year])
-VAR part_quarte = SELECTEDVALUE(parts[numericquarter])
+System_Count_Column = 
+VAR PartFamily = parts[Ultimate_family_name]
+VAR PartYear = parts[Order Year]
+VAR PartQuarter = parts[numericquarter]
+
+/* Calculate average system count from Export table */
+VAR SystemCount = 
+    AVERAGEX(
+        FILTER(
+            'Export',
+            'Export'[New_PSI_description] = PartFamily
+            && 'Export'[Year] = PartYear
+            && 'Export'[Quarter_Date] = PartQuarter
+        ),
+        'Export'[Value]
+    )
+
 RETURN
-CALCULATE(AVERAGE('Export'[Value]), 'Export'[New_PSI_description] = part_famly, 'Export'[Year] = part_year, 'Export'[Quarter_Date] = part_quarte, KEEPFILTERS(VALUES(DateTable[Year])), REMOVEFILTERS(parts[Order Fiscal Week]))
+IF( NOT ISBLANK(SystemCount), SystemCount, BLANK() )
