@@ -145,3 +145,47 @@ VAR SystemCount =
 
 RETURN
 IF( NOT ISBLANK(SystemCount), SystemCount, BLANK() )
+
+
+
+------------------new------------------------------------
+Exceedance_8Week = 
+VAR CurrentWeek = parts[Order Fiscal Week]
+VAR CurrentItem = parts[Item Description]
+VAR CurrentFamily = parts[Ultimate_family_name]
+VAR IsAnomaly = parts[TrailingAnomaly] = 1
+
+RETURN
+IF(
+    IsAnomaly,
+    
+    /* Find the most recent non-anomaly week before current */
+    VAR LastNonAnomalyWeek = 
+        MAXX(
+            FILTER(
+                parts,
+                parts[Item Description] = CurrentItem
+                && parts[Ultimate_family_name] = CurrentFamily
+                && parts[Order Fiscal Week] < CurrentWeek
+                && parts[TrailingAnomaly] = 0
+            ),
+            parts[Order Fiscal Week]
+        )
+    
+    /* Count how many anomaly weeks exist between last gap and current week */
+    VAR StreakPosition = 
+        COUNTROWS(
+            FILTER(
+                parts,
+                parts[Item Description] = CurrentItem
+                && parts[Ultimate_family_name] = CurrentFamily
+                && parts[Order Fiscal Week] > COALESCE(LastNonAnomalyWeek, 0)
+                && parts[Order Fiscal Week] <= CurrentWeek
+                && parts[TrailingAnomaly] = 1
+            )
+        )
+    
+    RETURN StreakPosition,
+    
+    BLANK()
+)
