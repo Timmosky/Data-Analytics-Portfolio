@@ -716,3 +716,48 @@ ADDCOLUMNS(
 -----------------------------------------------------
 Normal_Rate = 
 DIVIDE(parts_WeekLevel[Quantity], parts_WeekLevel[System_Count], 0)
+
+
+
+
+----------------------------------------------------------------------------------------------------
+Exceedance_8Week = 
+VAR CurrentWeek = parts_WeekLevel[Order Fiscal Week]
+VAR CurrentItem = parts_WeekLevel[Item Description]
+VAR CurrentFamily = parts_WeekLevel[Ultimate_family_name]
+VAR IsAnomaly = parts_WeekLevel[TrailingAnomaly] = 1
+
+RETURN
+IF(
+    IsAnomaly,
+    
+    VAR LastNonAnomalyWeek = 
+        MAXX(
+            FILTER(
+                parts_WeekLevel,
+                parts_WeekLevel[Item Description] = CurrentItem
+                && parts_WeekLevel[Ultimate_family_name] = CurrentFamily
+                && parts_WeekLevel[Order Fiscal Week] < CurrentWeek
+                && parts_WeekLevel[TrailingAnomaly] = 0
+            ),
+            parts_WeekLevel[Order Fiscal Week]
+        )
+    
+    VAR StreakStart = COALESCE(LastNonAnomalyWeek, 0)
+    
+    VAR StreakLength = 
+        COUNTROWS(
+            FILTER(
+                parts_WeekLevel,
+                parts_WeekLevel[Item Description] = CurrentItem
+                && parts_WeekLevel[Ultimate_family_name] = CurrentFamily
+                && parts_WeekLevel[Order Fiscal Week] > StreakStart
+                && parts_WeekLevel[Order Fiscal Week] <= CurrentWeek
+                && parts_WeekLevel[TrailingAnomaly] = 1
+            )
+        )
+    
+    RETURN StreakLength,
+    
+    BLANK()
+)
