@@ -664,3 +664,55 @@ Exceedance_pp :=
 VAR Threshold = SELECTEDVALUE('Exceedance Period'[Exceedance Period], 1)
 RETURN
 IF(parts[Exceedance_Streak] >= Threshold, parts[Exceedance_Streak], BLANK())
+
+-------------------------------------------------
+
+parts_WeekLevel = 
+ADDCOLUMNS(
+    SUMMARIZE(
+        parts,
+        parts[Order Fiscal Week],
+        parts[Item Description],
+        parts[Ultimate_family_name],
+        parts[Order Year],
+        parts[numericquarter]
+    ),
+    "Quantity", 
+        VAR CurWeek = [Order Fiscal Week]
+        VAR CurItem = [Item Description]
+        VAR CurFamily = [Ultimate_family_name]
+        RETURN
+        CALCULATE(
+            SUM(parts[Quantity]),
+            parts[Order Fiscal Week] = CurWeek,
+            parts[Item Description] = CurItem,
+            parts[Ultimate_family_name] = CurFamily
+        ),
+    
+    "System_Count",
+        VAR CurWeek = [Order Fiscal Week]
+        VAR CurItem = [Item Description]
+        VAR CurFamily = [Ultimate_family_name]
+        RETURN
+        CALCULATE(
+            AVERAGE(parts[System_Count_Column]),
+            parts[Order Fiscal Week] = CurWeek,
+            parts[Item Description] = CurItem,
+            parts[Ultimate_family_name] = CurFamily
+        ),
+    
+    "Order_Date_Max",
+        VAR CurWeek = [Order Fiscal Week]
+        VAR CurItem = [Item Description]
+        VAR CurFamily = [Ultimate_family_name]
+        RETURN
+        CALCULATE(
+            MAX(parts[Order Date]),
+            parts[Order Fiscal Week] = CurWeek,
+            parts[Item Description] = CurItem,
+            parts[Ultimate_family_name] = CurFamily
+        )
+)
+-----------------------------------------------------
+Normal_Rate = 
+DIVIDE(parts_WeekLevel[Quantity], parts_WeekLevel[System_Count], 0)
