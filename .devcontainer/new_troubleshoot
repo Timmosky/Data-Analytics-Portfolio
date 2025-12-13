@@ -189,3 +189,58 @@ IF(
     
     BLANK()
 )
+
+
+
+
+
+--------------------------------------
+Exceedance_8Week_Simple = 
+VAR CurrentWeek = parts[Order Fiscal Week]
+VAR CurrentItem = parts[Item Description]
+VAR CurrentFamily = parts[Ultimate_family_name]
+VAR IsAnomaly = parts[TrailingAnomaly] = 1
+
+RETURN
+IF(
+    IsAnomaly,
+    
+    /* Count backwards: how many consecutive anomaly weeks including this one? */
+    VAR ConsecutiveCount = 
+        /* Start with 1 (current week) */
+        1 + 
+        
+        /* Add weeks going backwards while they're anomalies */
+        SUMX(
+            /* Look at all prior weeks */
+            FILTER(
+                parts,
+                parts[Item Description] = CurrentItem
+                && parts[Ultimate_family_name] = CurrentFamily
+                && parts[Order Fiscal Week] < CurrentWeek
+                && parts[TrailingAnomaly] = 1
+            ),
+            
+            /* For each prior anomaly week, check if it's consecutive */
+            VAR PriorWeek = parts[Order Fiscal Week]
+            
+            /* Check if there's any gap between this prior week and current */
+            VAR HasGapBetween = 
+                COUNTROWS(
+                    FILTER(
+                        parts,
+                        parts[Item Description] = CurrentItem
+                        && parts[Ultimate_family_name] = CurrentFamily
+                        && parts[Order Fiscal Week] > PriorWeek
+                        && parts[Order Fiscal Week] < CurrentWeek
+                        && parts[TrailingAnomaly] = 0  /* Normal week = gap */
+                    )
+                ) > 0
+            
+            RETURN IF(NOT HasGapBetween, 1, 0)
+        )
+    
+    RETURN ConsecutiveCount,
+    
+    BLANK()
+)
