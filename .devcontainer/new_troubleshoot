@@ -565,3 +565,20 @@ Exceedance_pp :=
 VAR Threshold = SELECTEDVALUE('Exceedance Period'[Exceedance Period], 1)
 RETURN
 IF(parts[Exceedance_Streak] >= Threshold, parts[Exceedance_Streak], BLANK())
+
+
+--------------------------------------------------------weekly
+VAR CurrentWeek = parts[Order Fiscal Week]
+VAR CurrentItem = parts[Item Description]
+VAR CurrentFamily = parts[Ultimate_family_name]
+
+RETURN
+SUMX(
+    FILTER(
+        parts,
+        parts[Order Fiscal Week] = CurrentWeek
+        && parts[Item Description] = CurrentItem
+        && parts[Ultimate_family_name] = CurrentFamily
+    ),
+    parts[Quantity]
+)
