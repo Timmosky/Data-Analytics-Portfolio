@@ -1,252 +1,26 @@
------Comparing against prior (selected) periods------
+dax-----------------------------
+Normal_Rate = 
+VAR Qty = parts[Weekly_Qty_Ordered]  /* Or your quantity column name */
+VAR SysCount = parts[System_Count]    /* Your system count column */
+
+RETURN
+IF(
+    NOT ISBLANK(SysCount) && SysCount > 0,
+    DIVIDE(Qty, SysCount, 0),
+    BLANK()
+)
+
+----------------
+
 TrailingUpperLimit = 
-VAR SelectedMeanWeeks = SELECTEDVALUE( ALERTWINDOWSELECTOR[TrailingWindow], 8 )
-VAR SelectedStdWeeks  = SELECTEDVALUE( 'STDDEVIATION SELECTOR'[TrailingWindow], SelectedMeanWeeks )
-VAR Multiplier = SELECTEDVALUE( StdDevSelector[Multiplier], 2 )
-
-/* Current week's date - find the max date in current row context */
-VAR CurrentWeek = SELECTEDVALUE(parts[Order Fiscal Week])
-VAR CurrentMaxDate = 
-    CALCULATE(
-        MAX(parts[Order Date]),
-        parts[Order Fiscal Week] = CurrentWeek,
-        ALLEXCEPT(parts, parts[Item Description], parts[Ultimate_family_name])
-    )
-
-/* Define window BEFORE current week */
-VAR MeanStartDate = CurrentMaxDate - ( SelectedMeanWeeks * 7 )
-VAR MeanEndDate = CurrentMaxDate - 1  /* Exclude current week */
-VAR StdStartDate = CurrentMaxDate - ( SelectedStdWeeks * 7 )
-VAR StdEndDate = CurrentMaxDate - 1
-
-VAR CurrentItem = SELECTEDVALUE(parts[Item Description])
-VAR CurrentFamily = SELECTEDVALUE(parts[Ultimate_family_name])
-
-/* Summary for Mean - excludes current week */
-VAR SummaryForMean =
-    ADDCOLUMNS(
-        CALCULATETABLE(
-            SUMMARIZE(
-                parts,
-                parts[Order Fiscal Week],
-                parts[Item Description],
-                parts[Ultimate_family_name]
-            ),
-            parts[Item Description] = CurrentItem,
-            parts[Ultimate_family_name] = CurrentFamily,
-            parts[Order Date] >= MeanStartDate,
-            parts[Order Date] <= MeanEndDate,
-            parts[Order Fiscal Week] <> CurrentWeek  /* Extra safety */
-        ),
-        "NR_Value", [NR_Measure]
-    )
-
-/* Summary for StdDev - excludes current week */
-VAR SummaryForStd =
-    ADDCOLUMNS(
-        CALCULATETABLE(
-            SUMMARIZE(
-                parts,
-                parts[Order Fiscal Week],
-                parts[Item Description],
-                parts[Ultimate_family_name]
-            ),
-            parts[Item Description] = CurrentItem,
-            parts[Ultimate_family_name] = CurrentFamily,
-            parts[Order Date] >= StdStartDate,
-            parts[Order Date] <= StdEndDate,
-            parts[Order Fiscal Week] <> CurrentWeek  /* Extra safety */
-        ),
-        "NR_Value", [NR_Measure]
-    )
-
-VAR FilteredMean = FILTER(SummaryForMean, NOT ISBLANK([NR_Value]))
-VAR FilteredStd = FILTER(SummaryForStd, NOT ISBLANK([NR_Value]))
-
-VAR Mean = AVERAGEX(FilteredMean, [NR_Value])
-VAR StdDevv = STDEVX.P(FilteredStd, [NR_Value])
-
-RETURN
-IF(
-    NOT ISBLANK(Mean) && NOT ISBLANK(StdDevv),
-    Mean + ( Multiplier * StdDevv ),
-    BLANK()
-)
-
-
-
-------------Comparing new period based on historical (selected period) data---------------
-TrailingUpperLimitCOPY = 
-VAR SelectedMeanWeeks = SELECTEDVALUE( ALERTWINDOWSELECTOR[TrailingWindow], 104 ) /* Default mean window i set is 2 years */
-VAR SelectedStdWeeks  = SELECTEDVALUE( 'STDDEVIATION SELECTOR'[TrailingWindow], SelectedMeanWeeks )  // I am keeping this as a default fallback
-
-VAR Multiplier = SELECTEDVALUE( StdDevSelector[Multiplier], 2 )
-
-VAR MaxDate = CALCULATE(MAX(parts[Order Date]))
-
-/* mean window start (mean selector) */
-VAR MeanStartDate = MaxDate - ( SelectedMeanWeeks * 7 ) + 1
-
-/* std window start (std selector) */
-VAR StdStartDate = MaxDate - ( SelectedStdWeeks * 7 ) + 1
-
-/* filtered table for mean (keeps the ALLEXCEPT logic for Item Description) */
-VAR FilteredForMean =
-    FILTER(
-        ALLEXCEPT( Parts, Parts[Item Description], parts[Ultimate_family_name]), 
-        Parts[Order Date] >= MeanStartDate
-            && Parts[Order Date] <= MaxDate
-            && NOT ISBLANK(parts[Normal_rate])
-    )
-
-/* filtered table for std (same scope but different date window) */
-VAR FilteredForStd =
-    FILTER(
-        ALLEXCEPT( Parts, Parts[Item Description], parts[Ultimate_family_name]),
-        Parts[Order Date] >= StdStartDate
-            && Parts[Order Date] <= MaxDate
-            && NOT ISBLANK(parts[Normal_rate])
-    )
-
-VAR Mean = CALCULATE(AVERAGEX(FilteredForMean, parts[Normal_rate]))
-VAR StdDevv = CALCULATE(STDEVX.P(FilteredForStd, parts[Normal_rate]))
-
-RETURN
-Mean + ( Multiplier * StdDevv )
-
-
-
-VAR Exceedance8Week = [Exceedance_pp]
-VAR ExceedanceQuarterly = [Exceedance_pp_YOY_]
-VAR CurrentQuarter = [Current_Quarter_Number]
-VAR TriggerQuarter = [First_8Week_Trigger_Quarter_Rolling]
-VAR QD = [QD]
-VAR Validquarter = [Is_Sustained_Anomaly_Valid]
-
-RETURN
-SWITCH(
-    TRUE(),
-    
-    /* PRIORITY 2: Quarterly ≥2 AND within valid range (0-2 quarters) → Sustained */
-    ExceedanceQuarterly >= 2 && Validquarter = 1 ,
-        "Sustained Anomaly Detected",
-    
-    /* PRIORITY 3: 8-week spike outside trigger quarter */
-    Exceedance8Week >= 2, 
-        "Anomaly Detected",
-    
-    /* PRIORITY 4: Quarterly ≥2 but OUTSIDE valid range (3+ quarters or no trigger) */
-    ExceedanceQuarterly >= 2, 
-        "Quarterly Anomaly (Out of Range)",
-    
-    /* PRIORITY 5: Individual spikes */
-    [TrailingAnomaly] = 1 || [Quarterly_YoY_Anomaly] = 1, 
-        "Single Spike",
-    
-    /* PRIORITY 6: Normal */
-    "Normal"
-)
-
----------------------------------
-Exceedance_pp = 
-var currentweek = MAX(parts[Order Fiscal Week])
-VAR currentitem = MAX(parts[Item Description]) 
-VAR current_family = MAX(parts[Ultimate_family_name])
-Var threshold = SELECTEDVALUE('Exceedance Period'[Exceedance Period],1)
-var Maxlookback = 52
-Var offsets = GENERATESERIES(0, Maxlookback, 1)
-
-var firstzerooffset = MINX(offsets, Var o = [Value] 
-
-VAR wkDate = currentweek - o 
-VAR f1 = MAXX(FILTER(ALL(parts[Item Description], parts[Ultimate_family_name], parts[Order Fiscal Week]), parts[Item Description] = currentitem && parts[Ultimate_family_name] = current_family && parts[Order Fiscal Week] = wkDate),parts[Exceedance_Flag])
-
-
-RETURN IF(COALESCE( f1, 0) = 0, o, BLANK()))
-
-var streak = IF(ISBLANK(firstzerooffset), Maxlookback + 1 , firstzerooffset)
-
-RETURN
-IF(streak >= threshold, streak, BLANK())
-
-
-
----------------------------------------------------------------------------------
-Exceedance_pp_Column = 
-VAR CurrentWeek = parts[Order Fiscal Week]
-VAR CurrentItem = parts[Item Description]
-VAR CurrentFamily = parts[Ultimate_family_name]
-VAR IsAnomaly = parts[Exceedance_Flag] = 1
-
-RETURN
-IF(
-    IsAnomaly,
-    
-    /* Find the last non-anomaly week before current week */
-    VAR LastNonAnomalyWeek = 
-        MAXX(
-            FILTER(
-                parts,
-                parts[Item Description] = CurrentItem
-                && parts[Ultimate_family_name] = CurrentFamily
-                && parts[Order Fiscal Week] < CurrentWeek
-                && parts[Exceedance_Flag] = 0
-            ),
-            parts[Order Fiscal Week]
-        )
-    
-    /* Set streak start (0 if no gap found) */
-    VAR StreakStart = IF( ISBLANK(LastNonAnomalyWeek), 0, LastNonAnomalyWeek )
-    
-    /* Count anomaly weeks from streak start to current week */
-    VAR StreakLength = 
-        COUNTROWS(
-            FILTER(
-                parts,
-                parts[Item Description] = CurrentItem
-                && parts[Ultimate_family_name] = CurrentFamily
-                && parts[Order Fiscal Week] > StreakStart
-                && parts[Order Fiscal Week] <= CurrentWeek
-                && parts[Exceedance_Flag] = 1
-            )
-        )
-    
-    RETURN StreakLength,
-    
-    BLANK()
-)
-
-
-
----------------------------------------
-
-combinedanomaly = 
-VAR Exceedance8Week = MAX( parts[Exceedance_pp_Column] )
-VAR ExceedanceQuarterly = MAX( parts[Exceedance_pp_YOY_Column] )
-VAR CurrentQuarter = [Current_Quarter_Number]
-VAR Validquarter = [Is_Sustained_Anomaly_Valid]
-
-RETURN
-SWITCH(
-    TRUE(),
-    ExceedanceQuarterly >= 2 && Validquarter = 1, "Sustained Anomaly Detected",
-    Exceedance8Week >= 2, "Anomaly Detected",
-    ExceedanceQuarterly >= 2, "Quarterly Anomaly (Out of Range)",
-    MAX( parts[TrailingAnomaly] ) = 1 || MAX( parts[Quarterly_YoY_Anomaly] ) = 1, "Single Spike",
-    "Normal"
-)
-
------------------------------hardcoded---------------------------------------------------------
-
-TrailingUpperLimit_Column = 
-VAR SelectedMeanWeeks = 8
-VAR SelectedStdWeeks = 8
-VAR Multiplier = 1.5  /* Changed from 2 to 1.5 for sensitivity */
+VAR LookbackWeeks = 8
+VAR Multiplier = 1.5  /* Adjust for sensitivity: 1.5 = more alerts, 2.0 = fewer alerts */
 
 VAR CurrentWeek = parts[Order Fiscal Week]
 VAR CurrentItem = parts[Item Description]
 VAR CurrentFamily = parts[Ultimate_family_name]
 
+/* Get max date for current week */
 VAR CurrentMaxDate = 
     MAXX(
         FILTER(
@@ -258,158 +32,66 @@ VAR CurrentMaxDate =
         parts[Order Date]
     )
 
-VAR MeanStartDate = CurrentMaxDate - (SelectedMeanWeeks * 7)
-VAR MeanEndDate = CurrentMaxDate - 1
-VAR StdStartDate = CurrentMaxDate - (SelectedStdWeeks * 7)
-VAR StdEndDate = CurrentMaxDate - 1
+/* Define lookback window (BEFORE current week) */
+VAR StartDate = CurrentMaxDate - (LookbackWeeks * 7)
+VAR EndDate = CurrentMaxDate - 1  /* Exclude current week */
 
-VAR DataForMean = 
+/* Get prior weeks data */
+VAR PriorWeeksData = 
     FILTER(
         parts,
         parts[Item Description] = CurrentItem
         && parts[Ultimate_family_name] = CurrentFamily
-        && parts[Order Date] >= MeanStartDate
-        && parts[Order Date] <= MeanEndDate
+        && parts[Order Date] >= StartDate
+        && parts[Order Date] <= EndDate
         && parts[Order Fiscal Week] <> CurrentWeek
         && NOT ISBLANK(parts[Normal_Rate])
     )
 
-VAR DataForStd = 
-    FILTER(
-        parts,
-        parts[Item Description] = CurrentItem
-        && parts[Ultimate_family_name] = CurrentFamily
-        && parts[Order Date] >= StdStartDate
-        && parts[Order Date] <= StdEndDate
-        && parts[Order Fiscal Week] <> CurrentWeek
-        && NOT ISBLANK(parts[Normal_Rate])
-    )
+/* Calculate statistics */
+VAR Mean = AVERAGEX(PriorWeeksData, parts[Normal_Rate])
+VAR StdDev = STDEVX.P(PriorWeeksData, parts[Normal_Rate])
 
-VAR Mean = AVERAGEX(DataForMean, parts[Normal_Rate])
-VAR StdDevv = STDEVX.P(DataForStd, parts[Normal_Rate])
-
-RETURN
-IF(
-    NOT ISBLANK(Mean) && NOT ISBLANK(StdDevv),
-    Mean + (Multiplier * StdDevv),
-    BLANK()
-)
-
-----------------------step2--------------------------
-
-Exceedance_pp_Column = 
-VAR CurrentWeek = parts[Order Fiscal Week]
-VAR CurrentItem = parts[Item Description]
-VAR CurrentFamily = parts[Ultimate_family_name]
-VAR CurrentRate = parts[Normal_Rate]
-VAR CurrentLimit = parts[TrailingUpperLimit_Column]
-VAR IsAnomaly = NOT ISBLANK(CurrentLimit) && CurrentRate > CurrentLimit
-
-RETURN
-IF(
-    IsAnomaly,
-    
-    VAR LastNonAnomalyWeek = 
-        MAXX(
-            FILTER(
-                parts,
-                parts[Item Description] = CurrentItem
-                && parts[Ultimate_family_name] = CurrentFamily
-                && parts[Order Fiscal Week] < CurrentWeek
-                && (
-                    ISBLANK(parts[TrailingUpperLimit_Column]) 
-                    || parts[Normal_Rate] <= parts[TrailingUpperLimit_Column]
-                )
-            ),
-            parts[Order Fiscal Week]
-        )
-    
-    VAR StreakStart = IF( ISBLANK(LastNonAnomalyWeek), 0, LastNonAnomalyWeek )
-    
-    VAR StreakLength = 
-        COUNTROWS(
-            FILTER(
-                parts,
-                parts[Item Description] = CurrentItem
-                && parts[Ultimate_family_name] = CurrentFamily
-                && parts[Order Fiscal Week] > StreakStart
-                && parts[Order Fiscal Week] <= CurrentWeek
-                && NOT ISBLANK(parts[TrailingUpperLimit_Column])
-                && parts[Normal_Rate] > parts[TrailingUpperLimit_Column]
-            )
-        )
-    
-    RETURN StreakLength,
-    
-    BLANK()
-)
-----------------------------step 3---------------------
-
-Quarterly_YoY_UpperLimit_Column = 
-VAR Multiplier = 1.5
-
-VAR CurrentWeek = parts[Order Fiscal Week]
-VAR CurrentItem = parts[Item Description]
-VAR CurrentFamily = parts[Ultimate_family_name]
-VAR CurrentYear = INT(CurrentWeek / 100)
-VAR CurrentWeekNum = MOD(CurrentWeek, 100)
-
-VAR CurrentQuarter = 
-    SWITCH(
-        TRUE(),
-        CurrentWeekNum >= 1 && CurrentWeekNum <= 13, 1,
-        CurrentWeekNum >= 14 && CurrentWeekNum <= 26, 2,
-        CurrentWeekNum >= 27 && CurrentWeekNum <= 39, 3,
-        CurrentWeekNum >= 40 && CurrentWeekNum <= 53, 4,
-        BLANK()
-    )
-
-VAR PriorYear = CurrentYear - 1
-VAR QuarterStart = (CurrentQuarter - 1) * 13 + 1
-VAR QuarterEnd = CurrentQuarter * 13
-
-VAR PriorYearData = 
-    FILTER(
-        parts,
-        parts[Item Description] = CurrentItem
-        && parts[Ultimate_family_name] = CurrentFamily
-        && INT(parts[Order Fiscal Week] / 100) = PriorYear
-        && MOD(parts[Order Fiscal Week], 100) >= QuarterStart
-        && MOD(parts[Order Fiscal Week], 100) <= QuarterEnd
-        && NOT ISBLANK(parts[Normal_Rate])
-    )
-
-VAR PriorYearMean = AVERAGEX(PriorYearData, parts[Normal_Rate])
-VAR PriorYearStdDev = STDEVX.S(PriorYearData, parts[Normal_Rate])
-
+/* Handle edge cases */
 VAR SafeStdDev = 
     IF(
-        ISBLANK(PriorYearStdDev) || PriorYearStdDev = 0,
-        PriorYearMean * 0.3,
-        PriorYearStdDev
+        ISBLANK(StdDev) || StdDev = 0,
+        Mean * 0.3,  /* Fallback: 30% of mean */
+        StdDev
     )
+
+/* Calculate upper limit */
+RETURN
+IF(
+    NOT ISBLANK(Mean),
+    Mean + (Multiplier * SafeStdDev),
+    BLANK()
+)
+--------------------------------------------------------------
+TrailingAnomaly = 
+VAR CurrentRate = parts[Normal_Rate]
+VAR UpperLimit = parts[TrailingUpperLimit]
 
 RETURN
 IF(
-    NOT ISBLANK(PriorYearMean),
-    PriorYearMean + (Multiplier * SafeStdDev),
-    BLANK()
+    NOT ISBLANK(UpperLimit) && CurrentRate > UpperLimit,
+    1,
+    0
 )
---------------------------------step 4---------------------------------
 
+------------------------------------------------
 
-Exceedance_pp_YOY_Column = 
+Exceedance_8Week = 
 VAR CurrentWeek = parts[Order Fiscal Week]
 VAR CurrentItem = parts[Item Description]
 VAR CurrentFamily = parts[Ultimate_family_name]
-VAR CurrentRate = parts[Normal_Rate]
-VAR CurrentLimit = parts[Quarterly_YoY_UpperLimit_Column]
-VAR IsAnomaly = NOT ISBLANK(CurrentLimit) && CurrentRate > CurrentLimit
+VAR IsAnomaly = parts[TrailingAnomaly] = 1
 
 RETURN
 IF(
     IsAnomaly,
     
+    /* Find last non-anomaly week before current */
     VAR LastNonAnomalyWeek = 
         MAXX(
             FILTER(
@@ -417,16 +99,15 @@ IF(
                 parts[Item Description] = CurrentItem
                 && parts[Ultimate_family_name] = CurrentFamily
                 && parts[Order Fiscal Week] < CurrentWeek
-                && (
-                    ISBLANK(parts[Quarterly_YoY_UpperLimit_Column]) 
-                    || parts[Normal_Rate] <= parts[Quarterly_YoY_UpperLimit_Column]
-                )
+                && parts[TrailingAnomaly] = 0
             ),
             parts[Order Fiscal Week]
         )
     
-    VAR StreakStart = IF( ISBLANK(LastNonAnomalyWeek), 0, LastNonAnomalyWeek )
+    /* Set streak start (0 if never had a gap) */
+    VAR StreakStart = IF(ISBLANK(LastNonAnomalyWeek), 0, LastNonAnomalyWeek)
     
+    /* Count consecutive anomaly weeks */
     VAR StreakLength = 
         COUNTROWS(
             FILTER(
@@ -435,150 +116,11 @@ IF(
                 && parts[Ultimate_family_name] = CurrentFamily
                 && parts[Order Fiscal Week] > StreakStart
                 && parts[Order Fiscal Week] <= CurrentWeek
-                && NOT ISBLANK(parts[Quarterly_YoY_UpperLimit_Column])
-                && parts[Normal_Rate] > parts[Quarterly_YoY_UpperLimit_Column]
+                && parts[TrailingAnomaly] = 1
             )
         )
     
     RETURN StreakLength,
     
     BLANK()
-)
-
---------------------------------------------step 5--------------
-
-combinedanomaly = 
-VAR Exceedance8Week = MAX(parts[Exceedance_pp_Column])
-VAR ExceedanceQuarterly = MAX(parts[Exceedance_pp_YOY_Column])
-VAR CurrentQuarter = [Current_Quarter_Number]
-VAR Validquarter = [Is_Sustained_Anomaly_Valid]
-
-RETURN
-SWITCH(
-    TRUE(),
-    ExceedanceQuarterly >= 2 && Validquarter = 1, "Sustained Anomaly Detected",
-    Exceedance8Week >= 2, "Anomaly Detected",
-    ExceedanceQuarterly >= 2, "Quarterly Anomaly (Out of Range)",
-    "Normal"
-)
-
-----------------------------------------------------------------
-
-
-WeekIndex =
-RANKX(
-    FILTER(
-        parts,
-        parts[Item Description] = EARLIER(parts[Item Description]) &&
-        parts[Ultimate_family_name] = EARLIER(parts[Ultimate_family_name])
-    ),
-    parts[Order Fiscal Week],
-    ,
-    ASC,
-    DENSE
-)
-----------------------------------------------
-
-Exceedance_pp_Optimized :=
-VAR CurrItem   = SELECTEDVALUE(parts[Item Description])
-VAR CurrFamily = SELECTEDVALUE(parts[Ultimate_family_name])
-VAR CurrIndex  = MAX(parts[WeekIndex])
-VAR Threshold  = SELECTEDVALUE('Exceedance Period'[Exceedance Period], 1)
-
-VAR History =
-    FILTER(
-        ALL(parts),
-        parts[Item Description] = CurrItem &&
-        parts[Ultimate_family_name] = CurrFamily &&
-        parts[WeekIndex] <= CurrIndex
-    )
-
-VAR FlaggedOnly =
-    FILTER(
-        History,
-        parts[Exceedance_Flag] = 1
-    )
-
-VAR Streak =
-    COUNTROWS(
-        TOPN(
-            9999,
-            FlaggedOnly,
-            parts[WeekIndex],
-            DESC
-        )
-    )
-
-RETURN
-IF(Streak >= Threshold, Streak, BLANK())
---------------------------------------------------------------------
-Anomaly_Events =
-FILTER(
-    ADDCOLUMNS(
-        SUMMARIZE(
-            parts,
-            parts[Item Description],
-            parts[Ultimate_family_name],
-            parts[Order Fiscal Week]
-        ),
-        "Exceedance", [Exceedance_pp_Optimized]
-    ),
-    [Exceedance] >= 2
-)
-----------------------------
-Exceedance_Streak =
-VAR CurrItem   = parts[Item Description]
-VAR CurrFamily = parts[Ultimate_family_name]
-VAR CurrSeq    = parts[WeekSeq]
-
--- Find the last week BEFORE this one where flag = 0
-VAR LastZeroSeq =
-    MAXX(
-        FILTER(
-            parts,
-            parts[Item Description] = CurrItem &&
-            parts[Ultimate_family_name] = CurrFamily &&
-            parts[WeekSeq] < CurrSeq &&
-            parts[Exceedance_Flag] = 0
-        ),
-        parts[WeekSeq]
-    )
-
--- Count flagged rows since that reset point
-VAR Streak =
-    COUNTROWS(
-        FILTER(
-            parts,
-            parts[Item Description] = CurrItem &&
-            parts[Ultimate_family_name] = CurrFamily &&
-            parts[WeekSeq] > COALESCE(LastZeroSeq, 0) &&
-            parts[WeekSeq] <= CurrSeq &&
-            parts[Exceedance_Flag] = 1
-        )
-    )
-
-RETURN
-IF(parts[Exceedance_Flag] = 1, Streak, 0)
-
------------------------------
-Exceedance_pp :=
-VAR Threshold = SELECTEDVALUE('Exceedance Period'[Exceedance Period], 1)
-RETURN
-IF(parts[Exceedance_Streak] >= Threshold, parts[Exceedance_Streak], BLANK())
-
-
---------------------------------------------------------weekly
-VAR CurrentWeek = parts[Order Fiscal Week]
-VAR CurrentItem = parts[Item Description]
-VAR CurrentFamily = parts[Ultimate_family_name]
-
-RETURN
-SUMX(
-    FILTER(
-        parts,
-        parts[Order Fiscal Week] = CurrentWeek
-        && parts[Item Description] = CurrentItem
-        && parts[Ultimate_family_name] = CurrentFamily
-    ),
-    parts[Quantity]
 )
