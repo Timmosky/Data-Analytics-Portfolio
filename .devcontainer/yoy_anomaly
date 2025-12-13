@@ -261,3 +261,69 @@ SWITCH(
     /* Normal */
     "Normal"
 )
+
+
+
+------------------------------------------------------------
+
+Combined_Anomaly_Category_Fixed = 
+VAR Exceedance8Week = MAX(parts_WeekLevel[Exceedance_8Week])
+VAR ExceedanceQuarterly = MAX(parts_WeekLevel[Exceedance_Quarterly])
+
+/* Calculate valid flag inline */
+VAR CurrentQuarter = [Current_Quarter_Number]
+VAR TriggerQuarter = [First_8Week_Trigger_Quarter_Rolling]
+VAR Had8WeekTrigger = NOT ISBLANK(TriggerQuarter)
+VAR QuarterDistance = CurrentQuarter - TriggerQuarter
+VAR IsValidSustained = Had8WeekTrigger && QuarterDistance >= 0 && QuarterDistance <= 2
+
+RETURN
+SWITCH(
+    TRUE(),
+    
+    /* PRIORITY 1: Sustained (check this FIRST and ONLY) */
+    ExceedanceQuarterly >= 2 && IsValidSustained,
+        "Sustained Anomaly Detected",
+    
+    /* PRIORITY 2: 8-week consecutive */
+    Exceedance8Week >= 2,
+        "Anomaly Detected",
+    
+    /* PRIORITY 3: Quarterly but out of range */
+    ExceedanceQuarterly >= 2,
+        "Quarterly Anomaly (Out of Range)",
+    
+    /* PRIORITY 4: Single spikes */
+    MAX(parts_WeekLevel[TrailingAnomaly]) = 1 || MAX(parts_WeekLevel[Quarterly_YoY_Anomaly]) = 1,
+        "Single Spike",
+    
+    /* PRIORITY 5: Normal */
+    "Normal"
+)
+```
+
+---
+
+## **Test Steps**
+
+1. ✅ **Add `Debug_Sustained_Logic` measure** to your table
+2. ✅ **Check rows 5 & 6** - what does it show for TriggerQuarter and Distance?
+3. ✅ **Update `First_8Week_Trigger_Quarter_Rolling`** to include `Ultimate_family_name` filter
+4. ✅ **Replace `Combined_Anomaly_Category`** with the fixed version above
+
+---
+
+## **Expected Debug Output**
+
+For the rows showing "Quarterly Anomaly (Out of Range)", the debug should show:
+
+**If working correctly:**
+```
+CurQ: Q2 | TrigQ: Q1 | Dist: 1 | Valid: 1
+→ Should be "Sustained Anomaly Detected"
+```
+
+**If broken:**
+```
+CurQ: Q2 | TrigQ: None | Dist: N/A | Valid: 0
+→ Shows "Quarterly Anomaly (Out of Range)" (wrong)
