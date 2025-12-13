@@ -189,6 +189,48 @@ IF(
     
     BLANK()
 )
+------------------debug1-------------
+Debug_LastGap = 
+VAR CurrentWeek = parts[Order Fiscal Week]
+VAR CurrentItem = parts[Item Description]
+VAR CurrentFamily = parts[Ultimate_family_name]
+
+VAR LastNonAnomalyWeek = 
+    MAXX(
+        FILTER(
+            parts,
+            parts[Item Description] = CurrentItem
+            && parts[Ultimate_family_name] = CurrentFamily
+            && parts[Order Fiscal Week] < CurrentWeek
+            && parts[TrailingAnomaly] = 0
+        ),
+        parts[Order Fiscal Week]
+    )
+
+RETURN LastNonAnomalyWeek
+
+
+--------------------debug2--------------------
+Debug_AnomalyCount = 
+VAR CurrentWeek = parts[Order Fiscal Week]
+VAR CurrentItem = parts[Item Description]
+VAR CurrentFamily = parts[Ultimate_family_name]
+VAR LastGap = parts[Debug_LastGap]
+
+RETURN
+COUNTROWS(
+    FILTER(
+        parts,
+        parts[Item Description] = CurrentItem
+        && parts[Ultimate_family_name] = CurrentFamily
+        && parts[Order Fiscal Week] > COALESCE(LastGap, 0)
+        && parts[Order Fiscal Week] <= CurrentWeek
+        && parts[TrailingAnomaly] = 1
+    )
+)
+
+
+
 
 
 
