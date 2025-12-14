@@ -1,3 +1,39 @@
+Rolling_8Week_Moving_Average = 
+VAR CurrentWeek = parts_WeekLevel[Order Fiscal Week]
+VAR CurrentItem = parts_WeekLevel[Item Description]
+VAR CurrentFamily = parts_WeekLevel[Ultimate_family_name]
+VAR CurrentMaxDate = parts_WeekLevel[Order_Date_Max]
+
+/* 8-week window: current week + prior 7 weeks */
+VAR StartDate = CurrentMaxDate - (7 * 7)  /* 7 weeks back */
+VAR EndDate = CurrentMaxDate  /* Include current week */
+
+/* Get all weeks in the 8-week window */
+VAR Rolling8WeeksData = 
+    FILTER(
+        parts_WeekLevel,
+        parts_WeekLevel[Item Description] = CurrentItem
+        && parts_WeekLevel[Ultimate_family_name] = CurrentFamily
+        && parts_WeekLevel[Order_Date_Max] >= StartDate
+        && parts_WeekLevel[Order_Date_Max] <= EndDate
+        && NOT ISBLANK(parts_WeekLevel[Normal_Rate])
+    )
+
+/* Calculate average */
+VAR MovingAverage = AVERAGEX(Rolling8WeeksData, parts_WeekLevel[Normal_Rate])
+
+RETURN MovingAverage
+
+
+
+
+
+
+
+
+
+
+
 First_8Week_Trigger_Quarter_Rolling = 
 VAR CurrentItem = MAX(parts_WeekLevel[Item Description])
 VAR CurrentFamily = MAX(parts_WeekLevel[Ultimate_family_name])
