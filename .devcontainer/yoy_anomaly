@@ -465,3 +465,38 @@ CurQ: Q2 | TrigQ: Q1 | Dist: 1 | Valid: 1
 ```
 CurQ: Q2 | TrigQ: None | Dist: N/A | Valid: 0
 → Shows "Quarterly Anomaly (Out of Range)" (wrong)
+-------------------------------------------------------------------------------
+
+
+/* Replace existing Exceedance_Quarterly with: */
+Exceedance_Quarterly = 
+VAR CurrentWeek = parts_WeekLevel[Order Fiscal Week]
+VAR CurrentItem = parts_WeekLevel[Item Description]
+VAR CurrentFamily = parts_WeekLevel[Ultimate_family_name]
+VAR IsAnomaly = parts_WeekLevel[Quarterly_YoY_Anomaly]
+
+RETURN
+IF(
+    IsAnomaly = 1,
+    VAR LastGap = MAXX(
+        FILTER(
+            parts_WeekLevel,
+            parts_WeekLevel[Item Description] = CurrentItem
+            && parts_WeekLevel[Ultimate_family_name] = CurrentFamily
+            && parts_WeekLevel[Order Fiscal Week] < CurrentWeek
+            && parts_WeekLevel[Quarterly_YoY_Anomaly] = 0
+        ),
+        parts_WeekLevel[Order Fiscal Week]
+    )
+    RETURN COUNTROWS(
+        FILTER(
+            parts_WeekLevel,
+            parts_WeekLevel[Item Description] = CurrentItem
+            && parts_WeekLevel[Ultimate_family_name] = CurrentFamily
+            && parts_WeekLevel[Order Fiscal Week] > COALESCE(LastGap, 0)
+            && parts_WeekLevel[Order Fiscal Week] <= CurrentWeek
+            && parts_WeekLevel[Quarterly_YoY_Anomaly] = 1
+        )
+    ),
+    BLANK()
+)
