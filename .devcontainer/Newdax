@@ -761,3 +761,58 @@ IF(
     
     BLANK()
 )
+
+
+
+
+
+
+--------/--/-------
+
+
+TrailingUpperLimit_Lagged = 
+VAR LookbackWeeks = 12  /* How many weeks to analyze */
+VAR LagWeeks = 6        /* How many recent weeks to skip */
+VAR Multiplier = 2      /* Standard deviation multiplier */
+
+VAR CurrentWeek = parts_WeekLevel[Order Fiscal Week]
+VAR CurrentItem = parts_WeekLevel[Item Description]
+VAR CurrentFamily = parts_WeekLevel[Ultimate_family_name]
+VAR CurrentMaxDate = parts_WeekLevel[Order_Date_Max]
+
+/* Define the lagged window */
+VAR LagStartDate = CurrentMaxDate - ((LagWeeks + LookbackWeeks) * 7)  /* Go back 18 weeks total */
+VAR LagEndDate = CurrentMaxDate - (LagWeeks * 7) - 1                   /* Stop 6 weeks ago */
+
+/* Get data from the lagged window */
+VAR LaggedData = 
+    FILTER(
+        parts_WeekLevel,
+        parts_WeekLevel[Item Description] = CurrentItem
+        && parts_WeekLevel[Ultimate_family_name] = CurrentFamily
+        && parts_WeekLevel[Order_Date_Max] >= LagStartDate
+        && parts_WeekLevel[Order_Date_Max] <= LagEndDate
+        && NOT ISBLANK(parts_WeekLevel[Normal_Rate])
+    )
+
+/* Calculate statistics from lagged window */
+VAR Mean = AVERAGEX(LaggedData, parts_WeekLevel[Normal_Rate])
+VAR StdDev = STDEVX.P(LaggedData, parts_WeekLevel[Normal_Rate])
+
+/* Handle edge cases */
+VAR SafeStdDev = 
+    IF(
+        ISBLANK(StdDev) || StdDev = 0,
+        Mean * 0.3,
+        StdDev
+    )
+
+/* Calculate upper limit */
+VAR UpperLimit = 
+    IF(
+        NOT ISBLANK(Mean),
+        Mean + (Multiplier * SafeStdDev),
+        BLANK()
+    )
+
+RETURN UpperLimit
