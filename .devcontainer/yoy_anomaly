@@ -1,3 +1,11 @@
+{
+  "OrderYear": @{outputs('Parse_JSON')?[0]},
+  "OrderFiscalWeek": @{outputs('Parse_JSON')?[1]},
+  "ItemDescription": @{outputs('Parse_JSON')?[2]}
+}
+
+
+
 Rolling_8Week_Moving_Average = 
 VAR CurrentWeek = parts_WeekLevel[Order Fiscal Week]
 VAR CurrentItem = parts_WeekLevel[Item Description]
