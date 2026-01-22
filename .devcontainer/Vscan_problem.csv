@@ -1,0 +1,53 @@
+﻿Item Description,Order Fiscal Week,Quantity,System_Count,numericquarter,Normal_Rate,Quarterly_YoY_Anomaly,TrailingUpperLimit_Lagged,TrailingAnomaly_Lagged_Filtered,TrailingAnomaly_Lagged,Exceedance_4Week_Streak,Combined_Anomaly_Category
+Handler,202404,1,25104,1,0.00004,0,,0,0,0,Normal
+Handler,202407,1,25104,1,0.00004,0,,0,0,0,Normal
+Handler,202408,1,25104,1,0.00004,0,,0,0,0,Normal
+Handler,202423,1,27250,2,0.00004,0,0.00006,0,0,0,Normal
+Handler,202424,1,27250,2,0.00004,0,0.00006,0,0,0,Normal
+Handler,202428,1,28626,3,0.00003,0,,0,0,0,Normal
+Handler,202429,1,28626,3,0.00003,0,,0,0,0,Normal
+Handler,202430,1,28626,3,0.00003,0,0.00006,0,0,0,Normal
+Handler,202432,1,28626,3,0.00003,0,0.00006,0,0,0,Normal
+Handler,202433,1,28626,3,0.00003,0,0.00006,0,0,0,Normal
+Handler,202440,1,29452,4,0.00003,0,0.00004,0,0,0,Normal
+Handler,202451,1,29452,4,0.00003,0,0.00004,0,0,0,Normal
+Handler,202502,1,29839,1,0.00003,0,0.00005,0,0,0,Normal
+Handler,202504,3,29839,1,0.0001,1,0.00005,0,1,0,Single Spike
+Handler,202505,1,29839,1,0.00003,0,0.00005,0,0,0,Normal
+Handler,202510,3,29839,1,0.0001,1,0.00003,0,1,0,Single Spike
+Handler,202517,1,30130,2,0.00003,0,0.00013,0,0,0,Normal
+Handler,202520,11,30130,2,0.00037,1,0.00014,1,1,0,Single Spike
+Handler,202521,17,30130,2,0.00056,1,0.00014,1,1,0,Quarterly Anomaly (Out of Range)
+Handler,202522,35,30130,2,0.00116,1,0.00014,1,1,1,Sustained Anomaly Detected
+Handler,202523,13,30130,2,0.00043,1,0.00016,1,1,1,Sustained Anomaly Detected
+Handler,202524,25,30130,2,0.00083,1,0.00013,1,1,1,Sustained Anomaly Detected
+Handler,202525,9,30130,2,0.0003,1,0.00013,1,1,1,Sustained Anomaly Detected
+Handler,202526,1,30130,2,0.00003,0,0.00013,0,0,0,Normal
+Handler,202527,1,30130,2,0.00003,0,0.00045,0,0,0,Normal
+Handler,202527,25,30069,3,0.00083,1,0.00045,1,1,1,Anomaly 3 out of 4 Detected
+Handler,202528,10,30069,3,0.00033,1,0.00069,0,0,0,Single Spike
+Handler,202529,7,30069,3,0.00023,1,0.00135,0,0,0,Sustained Anomaly Detected
+Handler,202530,2,30069,3,0.00007,1,0.00125,0,0,0,Sustained Anomaly Detected
+Handler,202531,1,30069,3,0.00003,0,0.00128,0,0,0,Normal
+Handler,202532,20,30069,3,0.00067,1,0.00121,0,0,0,Single Spike
+Handler,202533,2,30069,3,0.00007,1,0.00115,0,0,0,Sustained Anomaly Detected
+Handler,202534,1,30069,3,0.00003,0,0.0012,0,0,0,Normal
+Handler,202536,2,30069,3,0.00007,1,0.00111,0,0,0,Single Spike
+Handler,202537,9,30069,3,0.0003,1,0.00109,0,0,0,Sustained Anomaly Detected
+Handler,202538,4,30069,3,0.00013,1,0.00113,0,0,0,Sustained Anomaly Detected
+Handler,202539,5,30069,3,0.00017,1,0.0011,0,0,0,Sustained Anomaly Detected
+Handler,202540,1,30286,4,0.00003,0,0.00111,0,0,0,Normal
+Handler,202540,1,30069,3,0.00003,0,0.00111,0,0,0,Normal
+Handler,202541,3,30286,4,0.0001,1,0.00088,0,0,0,Single Spike
+Handler,202542,3,30286,4,0.0001,1,0.00089,0,0,0,Sustained Anomaly Detected
+Handler,202543,7,30286,4,0.00023,1,0.00074,0,0,0,Sustained Anomaly Detected
+Handler,202544,13,30286,4,0.00043,1,0.00077,0,0,0,Sustained Anomaly Detected
+Handler,202545,8,30286,4,0.00026,1,0.00077,0,0,0,Sustained Anomaly Detected
+Handler,202546,13,30286,4,0.00043,1,0.0005,0,0,0,Sustained Anomaly Detected
+Handler,202547,13,30286,4,0.00043,1,0.00049,0,0,0,Sustained Anomaly Detected
+Handler,202549,3,30286,4,0.0001,1,0.00051,0,0,0,Sustained Anomaly Detected
+Handler,202551,5,30286,4,0.00017,1,0.0004,0,0,0,Sustained Anomaly Detected
+Handler,202552,4,30286,4,0.00013,1,0.00041,0,0,0,Sustained Anomaly Detected
+Handler,202602,5,30469,1,0.00016,1,0.00051,0,0,0,Quarterly Anomaly (Out of Range)
+Handler,202603,5,30469,1,0.00016,1,0.00051,0,0,0,Quarterly Anomaly (Out of Range)
+Handler,202604,2,30469,1,0.00007,0,0.0005,0,0,0,Normal
