@@ -1,3 +1,120 @@
+parts_WeekLevel = 
+ADDCOLUMNS(
+    SUMMARIZE(
+        parts,
+        parts[Order Fiscal Week],
+        parts[Item Description],
+        parts[Ultimate_family_name]
+        /* Remove Order Year and numericquarter from SUMMARIZE */
+    ),
+    "Order Year",
+        VAR CurWeek = [Order Fiscal Week]
+        RETURN INT(CurWeek / 100),
+    
+    "numericquarter",
+        VAR CurWeek = [Order Fiscal Week]
+        VAR WeekNum = MOD(CurWeek, 100)
+        RETURN 
+        SWITCH(
+            TRUE(),
+            WeekNum >= 1 && WeekNum <= 13, 1,
+            WeekNum >= 14 && WeekNum <= 26, 2,
+            WeekNum >= 27 && WeekNum <= 39, 3,
+            WeekNum >= 40 && WeekNum <= 53, 4,
+            BLANK()
+        ),
+    
+    "Quantity", 
+        VAR CurWeek = [Order Fiscal Week]
+        VAR CurItem = [Item Description]
+        VAR CurFamily = [Ultimate_family_name]
+        RETURN
+        CALCULATE(
+            SUM(parts[Quantity]),
+            parts[Order Fiscal Week] = CurWeek,
+            parts[Item Description] = CurItem,
+            parts[Ultimate_family_name] = CurFamily
+        ),
+    
+    "System_Count",
+        VAR CurWeek = [Order Fiscal Week]
+        VAR CurItem = [Item Description]
+        VAR CurFamily = [Ultimate_family_name]
+        RETURN
+        CALCULATE(
+            /* Use MAX or AVERAGE depending on your logic */
+            MAX(parts[System_Count_Column]),
+            parts[Order Fiscal Week] = CurWeek,
+            parts[Item Description] = CurItem,
+            parts[Ultimate_family_name] = CurFamily
+        ),
+    
+    "systemid",
+        VAR CurWeek = [Order Fiscal Week]
+        VAR CurItem = [Item Description]
+        VAR CurFamily = [Ultimate_family_name]
+        RETURN
+        CONCATENATEX(
+            FILTER(
+                parts,
+                parts[Order Fiscal Week] = CurWeek
+                && parts[Item Description] = CurItem
+                && parts[Ultimate_family_name] = CurFamily
+            ),
+            parts[systemid],
+            ", ",
+            parts[systemid], ASC
+        ),
+    
+    "item_key",
+        VAR CurItem = [Item Description]
+        RETURN
+        CONCATENATEX(
+            DISTINCT(
+                SELECTCOLUMNS(
+                    FILTER(
+                        parts,
+                        parts[Item Description] = CurItem
+                    ),
+                    "ItemKey", parts[item_key]
+                )
+            ),
+            [ItemKey],
+            ", ",
+            [ItemKey], ASC
+        ),
+    
+    "Order_Date_Max",
+        VAR CurWeek = [Order Fiscal Week]
+        VAR CurItem = [Item Description]
+        VAR CurFamily = [Ultimate_family_name]
+        RETURN
+        CALCULATE(
+            MAX(parts[Order Date]),
+            parts[Order Fiscal Week] = CurWeek,
+            parts[Item Description] = CurItem,
+            parts[Ultimate_family_name] = CurFamily
+        )
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 🛠️ Step-by-Step Implementation
 Step 1: ✅ Store Service Records in S3
 Example file: s3://your-bucket/service-records/service_records.csv
