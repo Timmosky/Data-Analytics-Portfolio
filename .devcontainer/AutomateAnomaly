@@ -250,3 +250,18 @@ MINX(
     ),
     parts[FQ_Num]
 )
+--------------------------------
+TrailingAnomaly_Lagged_Filtered = 
+VAR CurrentRate = parts_WeekLevel[Normal_Rate]
+VAR UpperLimit = parts_WeekLevel[TrailingUpperLimit_Lagged]
+VAR MinimumRateThreshold = 0.00015  /* 1.5 parts per 10,000 systems */
+
+RETURN
+IF(
+    NOT ISBLANK(CurrentRate) 
+    && NOT ISBLANK(UpperLimit)
+    && CurrentRate > UpperLimit 
+    && CurrentRate >= MinimumRateThreshold,
+    1,
+    0
+)
