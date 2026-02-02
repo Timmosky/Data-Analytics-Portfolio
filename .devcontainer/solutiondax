@@ -1,0 +1,116 @@
+Debug_Dates_202605 = 
+VAR CurrentWeek = parts_WeekLevel[Order Fiscal Week]
+VAR CurrentItem = parts_WeekLevel[Item Description]
+VAR CurrentMaxDate = parts_WeekLevel[Order_Date_Max]
+VAR IsDebug = (CurrentWeek = 202605 && (CurrentItem = "kkpart" || CurrentItem = "XT"))
+
+VAR WindowStartDate = CurrentMaxDate - 21
+VAR WindowEndDate = CurrentMaxDate
+
+VAR Last4Weeks = 
+    FILTER(
+        parts_WeekLevel,
+        parts_WeekLevel[Item Description] = CurrentItem
+        && parts_WeekLevel[Ultimate_family_name] = parts_WeekLevel[Ultimate_family_name]
+        && parts_WeekLevel[Order_Date_Max] >= WindowStartDate
+        && parts_WeekLevel[Order_Date_Max] <= WindowEndDate
+    )
+
+VAR WeeksFound = 
+    CONCATENATEX(
+        Last4Weeks,
+        parts_WeekLevel[Order Fiscal Week] & 
+        " (" & FORMAT(parts_WeekLevel[Order_Date_Max], "MMM-DD") & ")",
+        " | ",
+        parts_WeekLevel[Order Fiscal Week],
+        ASC
+    )
+
+RETURN
+IF(
+    IsDebug,
+    "Start: " & FORMAT(WindowStartDate, "MMM-DD") & 
+    " | End: " & FORMAT(WindowEndDate, "MMM-DD") & 
+    " | Found: " & WeeksFound,
+    BLANK()
+)
+
+
+
+
+
+-------------------------------------
+
+
+
+Exceedance_4Week_Streak_Fixed = 
+VAR MinSpikes = 3
+VAR CurrentWeek = parts_WeekLevel[Order Fiscal Week]
+VAR CurrentItem = parts_WeekLevel[Item Description]
+VAR CurrentFamily = parts_WeekLevel[Ultimate_family_name]
+VAR CurrentIsSpike = parts_WeekLevel[TrailingAnomaly_Lagged_Filtered]
+
+/* Look at the last 4 fiscal weeks (not 21 days) */
+VAR Last4FiscalWeeks = 
+    FILTER(
+        parts_WeekLevel,
+        parts_WeekLevel[Item Description] = CurrentItem
+        && parts_WeekLevel[Ultimate_family_name] = CurrentFamily
+        && parts_WeekLevel[Order Fiscal Week] >= CurrentWeek - 3  /* Last 4 weeks by number */
+        && parts_WeekLevel[Order Fiscal Week] <= CurrentWeek
+    )
+
+/* Count spikes in those weeks */
+VAR SpikeCount = 
+    COUNTROWS(
+        FILTER(
+            Last4FiscalWeeks,
+            parts_WeekLevel[TrailingAnomaly_Lagged_Filtered] = 1
+        )
+    )
+
+RETURN
+IF(
+    CurrentIsSpike = 1 && SpikeCount >= MinSpikes,
+    1,
+    0
+)
+```
+
+**Key change:** Uses `parts_WeekLevel[Order Fiscal Week] >= CurrentWeek - 3` instead of date arithmetic.
+
+---
+
+## **Why Fiscal Week Numbers Work Better**
+```
+For week 202605:
+CurrentWeek - 3 = 202605 - 3 = 202602
+
+Filter: weeks >= 202602 AND <= 202605
+Always captures: 202602, 202603, 202604, 202605
+
+No dependency on Order_Date_Max!
+Works consistently regardless of when orders arrive!
+
+
+
+------------------------------------
+
+
+VAR WindowStartWeek = CurrentWeek - 3  /* 4 weeks ago */
+VAR WindowStartDate = 
+    CALCULATE(
+        MIN(parts_WeekLevel[Order_Date_Max]),
+        parts_WeekLevel[Order Fiscal Week] = WindowStartWeek,
+        parts_WeekLevel[Item Description] = CurrentItem,
+        parts_WeekLevel[Ultimate_family_name] = CurrentFamily
+    )
+
+VAR Last4Weeks = 
+    FILTER(
+        parts_WeekLevel,
+        parts_WeekLevel[Item Description] = CurrentItem
+        && parts_WeekLevel[Ultimate_family_name] = CurrentFamily
+        && parts_WeekLevel[Order_Date_Max] >= WindowStartDate
+        && parts_WeekLevel[Order_Date_Max] <= CurrentMaxDate
+    )
