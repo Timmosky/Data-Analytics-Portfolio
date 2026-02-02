@@ -1,3 +1,91 @@
+Exceedance_4Week_Streak = 
+VAR MinSpikes = 3  /* Need at least 3 spikes */
+
+VAR CurrentItem = parts_WeekLevel[Item Description]
+VAR CurrentFamily = parts_WeekLevel[Ultimate_family_name]
+VAR CurrentMaxDate = parts_WeekLevel[Order_Date_Max]
+VAR CurrentIsSpike = parts_WeekLevel[TrailingAnomaly_Lagged_Filtered]
+
+/* Get last 4 weeks of AVAILABLE data including current */
+VAR WindowStartDate = CurrentMaxDate - 21  /* 3 weeks back */
+VAR WindowEndDate = CurrentMaxDate
+
+VAR Last4Weeks = 
+    FILTER(
+        parts_WeekLevel,
+        parts_WeekLevel[Item Description] = CurrentItem
+        && parts_WeekLevel[Ultimate_family_name] = CurrentFamily
+        && parts_WeekLevel[Order_Date_Max] >= WindowStartDate
+        && parts_WeekLevel[Order_Date_Max] <= WindowEndDate
+    )
+
+/* Count spikes in available weeks */
+VAR SpikeCount = 
+    COUNTROWS(
+        FILTER(
+            Last4Weeks,
+            parts_WeekLevel[TrailingAnomaly_Lagged_Filtered] = 1
+        )
+    )
+
+/* Flag if: current is spike AND at least 3 spikes in last 4 weeks */
+RETURN
+IF(
+    CurrentIsSpike = 1 && SpikeCount >= MinSpikes,
+    1,
+    0
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 Rolling_8Week_Moving_Average = 
 VAR CurrentWeek = parts_WeekLevel[Order Fiscal Week]
 VAR CurrentItem = parts_WeekLevel[Item Description]
