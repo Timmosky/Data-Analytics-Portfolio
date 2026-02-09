@@ -1,0 +1,192 @@
+RAW EVENTS INDEX
+(events-*)
+--------------------------------
+Fields:
+@timestamp
+product_type
+event_summary
+tarsystemid
+software_version
+--------------------------------
+            │
+            
+TRANSFORM: weekly_event_rollup
+(Group by: week, product, event_summary)
+--------------------------------
+Aggregations:
+event_count = doc_count
+--------------------------------
+Output index:
+weekly_event_rollup
+--------------------------------
+            │
+            ▼
+ENRICH PIPELINE
+(join_key = week|product)
+Lookup:
+weekly_product_base
+--------------------------------
+Adds:
+systems_reporting_week
+--------------------------------
+            │
+            ▼
+DERIVED FIELD CALCULATION
+--------------------------------
+event_frequency_rate =
+event_count
+/
+systems_reporting_week
+--------------------------------
+            │
+            ▼
+BASELINE MODEL
+--------------------------------
+rolling_mean(rate)
+rolling_std(rate)
+
+upper_limit =
+mean + 3 × std
+--------------------------------
+            │
+            ▼
+ANOMALY FLAG
+--------------------------------
+if rate > upper_limit
+→ anomaly = TRUE
+--------------------------------
+-------------------------------------------------------------------------------------------------
+2) System Prevalence Rate Workflow
+
+(Measures spread across systems — true fleet impact)
+
+4
+RAW EVENTS INDEX
+(events-*)
+--------------------------------
+Fields:
+@timestamp
+product_type
+event_summary
+tarsystemid
+--------------------------------
+            │
+            ▼
+TRANSFORM: weekly_event_prevalence
+(Group by: week, product, event_summary)
+--------------------------------
+Aggregations:
+affected_systems =
+cardinality(tarsystemid)
+--------------------------------
+Output index:
+weekly_event_prevalence
+--------------------------------
+            │
+            ▼
+ENRICH PIPELINE
+(join_key = week|product)
+Lookup:
+weekly_product_base
+--------------------------------
+Adds:
+systems_reporting_week
+--------------------------------
+            │
+            ▼
+DERIVED FIELD CALCULATION
+--------------------------------
+system_prevalence_rate =
+affected_systems
+/
+systems_reporting_week
+--------------------------------
+            │
+            ▼
+BASELINE MODEL
+--------------------------------
+rolling_mean(rate)
+rolling_std(rate)
+
+upper_limit =
+mean + 3 × std
+--------------------------------
+            │
+            ▼
+ANOMALY FLAG
+--------------------------------
+if rate > upper_limit
+→ anomaly = TRUE
+--------------------------------
+
+Direct Comparison (Most Important Insight)
+EVENT FREQUENCY RATE
+--------------------
+Measures: log intensity
+
+Counts:
+total events
+
+Sensitive to:
+spam, loops, runaway logging
+
+Blind to:
+how many systems affected
+
+
+SYSTEM PREVALENCE RATE
+----------------------
+Measures: fleet impact
+
+Counts:
+unique systems affected
+
+Sensitive to:
+real product-wide issues
+
+Ignores:
+duplicate spam from single system
+
+Visual Conceptual Comparison
+Scenario:
+30 systems total
+
+Case A:
+1 system logs event 500 times
+
+frequency_rate  = 500 / 30 = 16.7  ← anomaly
+prevalence_rate =   1 / 30 = 0.03  ← normal
+
+
+Case B:
+20 systems log event once
+
+frequency_rate  = 20 / 30 = 0.67  ← maybe normal
+prevalence_rate = 20 / 30 = 0.67  ← anomaly
+
+Best Practice (What large-scale fleet monitoring systems do)
+
+Use BOTH metrics in parallel:
+
+Transform A → frequency_rate anomalies
+Transform B → prevalence_rate anomalies
+
+
+This gives you:
+
+Detects	Frequency	Prevalence
+log spam	✓	✗
+runaway loops	✓	✗
+fleet-wide failures	✗	✓
+systemic product bugs	✗	✓
+Recommended Architecture for Your Elastic Setup
+events-* index
+    │
+    ├── transform → weekly_event_frequency
+    │       → enrich
+    │       → anomaly detection
+    │
+    └── transform → weekly_event_prevalence
+            → enrich
+            → anomaly detection
+
